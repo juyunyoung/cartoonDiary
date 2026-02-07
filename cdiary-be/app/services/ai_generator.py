@@ -1,14 +1,13 @@
 import uuid
 import time
-import asyncio
+import threading
 from app.models.schemas import JobStatusEnum, DiaryEntryRequest
-from fastapi import BackgroundTasks
 from app.services.nova_service import nova_service
 
 # In-memory storage for jobs (replace with DB/Redis later)
 jobs = {}
 
-def start_generation_job(diary_entry: DiaryEntryRequest, background_tasks: BackgroundTasks) -> str:
+def start_generation_job(diary_entry: DiaryEntryRequest) -> str:
     job_id = str(uuid.uuid4())
     jobs[job_id] = {
         "jobId": job_id,
@@ -20,10 +19,14 @@ def start_generation_job(diary_entry: DiaryEntryRequest, background_tasks: Backg
         "error": None
     }
     
-    background_tasks.add_task(process_job, job_id, diary_entry.diaryText)
+    # Start background thread
+    thread = threading.Thread(target=process_job, args=(job_id, diary_entry.diaryText))
+    thread.daemon = True # Daemonize thread
+    thread.start()
+    
     return job_id
 
-async def process_job(job_id: str, text: str):
+def process_job(job_id: str, text: str):
     job = jobs.get(job_id)
     if not job:
         return
@@ -32,30 +35,30 @@ async def process_job(job_id: str, text: str):
         # Step 1: Reading Diary
         job["status"] = JobStatusEnum.reading_diary
         job["progress"] = 0.1
-        await asyncio.sleep(1) # simulate parsing if ANY
+        time.sleep(1) # simulate parsing if ANY
 
         # Step 2: Storyboard (Skipped for now, mock)
         job["status"] = JobStatusEnum.building_storyboard
         job["progress"] = 0.3
-        await asyncio.sleep(1)
+        time.sleep(1)
 
         # Step 3: Generating Images
         job["status"] = JobStatusEnum.generating_images
         job["progress"] = 0.5
         
-        loop = asyncio.get_event_loop()
-        # Use run_in_executor to avoid blocking the event loop with synchronous boto3 call
+        # Synchronous call since we are in a thread
         if nova_service:
             # Simple prompt for now: just the diary text
-            # In production, we'd use an LLM to summarize/describe scene first.
             prompt = f"A comic strip panel, cartoon style: {text[:200]}" 
-            image_bytes = await loop.run_in_executor(None, nova_service.generate_image, prompt)
+            image_bytes = nova_service.generate_image(prompt)
             
             if image_bytes:
-                # Mock saving - in real app, save to file/S3
-                # For now, just mark success.
+                # Mock saving
                 pass 
             else:
+                # In a real app we might fail here, or just log config usage
+                # For this demo, if no bytes, we proceed or error?
+                # NovaService returns None on error.
                 raise Exception("Failed to generate image from Nova")
         else:
             raise Exception("Nova Service not initialized")
@@ -64,7 +67,7 @@ async def process_job(job_id: str, text: str):
 
         # Step 4: Composing
         job["status"] = JobStatusEnum.composing_strip
-        await asyncio.sleep(1)
+        time.sleep(1)
         
         # Done
         job["status"] = JobStatusEnum.done

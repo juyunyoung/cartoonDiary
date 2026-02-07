@@ -1,30 +1,24 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, jsonify
+from flask_cors import CORS
 from app.routers import diary, jobs, artifacts
 
-app = FastAPI(title="Cartoon Diary API")
+app = Flask(__name__)
 
-origins = [
-    "http://localhost:5173", # Vite default port
-    "http://localhost:3000",
-]
+# Configure CORS
+CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000"]}})
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Register Blueprints
+app.register_blueprint(diary.bp)
+app.register_blueprint(jobs.bp)
+app.register_blueprint(artifacts.bp)
 
-app.include_router(diary.router)
-app.include_router(jobs.router)
-app.include_router(artifacts.router)
-
-@app.get("/")
+@app.route("/")
 def read_root():
-    return {"message": "Welcome to Cartoon Diary API"}
+    return jsonify({"message": "Welcome to Cartoon Diary API"})
 
-@app.get("/health")
+@app.route("/health")
 def health_check():
-    return {"status": "ok"}
+    return jsonify({"status": "ok"})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080, debug=True)

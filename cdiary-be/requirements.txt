@@ -1,9 +1,9 @@
-fastapi
-uvicorn
+flask
+flask-cors
+gunicorn
 pydantic
-python-multipart
-requests
 python-dotenv
+requests
 google-generativeai
 langchain
 langchain-google-genai
