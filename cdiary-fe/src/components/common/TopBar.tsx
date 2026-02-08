@@ -18,10 +18,10 @@ export const TopBar: React.FC<TopBarProps> = ({ title, showBack = false, onBack,
   };
 
   return (
-    <header className="h-14 flex items-center px-4 border-b border-primary/20 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+    <header className="h-14 flex items-center px-4 border-b border-primary/10 sticky top-0 bg-white/80 backdrop-blur-sm z-10">
       <div className="w-10 flex justify-start">
         {showBack && (
-          <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+          <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-secondary/20 transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
         )}

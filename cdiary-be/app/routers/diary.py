@@ -7,6 +7,7 @@ router = APIRouter(prefix="/api/diary", tags=["diary"])
 @router.post("/generate")
 def generate_comic(diary_entry: DiaryEntryRequest):
     try:
+        print(generate_comic)
         # Start background job (threading)
         job_id = ai_generator.start_generation_job(diary_entry)
         

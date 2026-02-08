@@ -4,7 +4,7 @@ const API_BASE_URL = 'http://localhost:5050/api';
 
 export const api = {
   async generateDiary(data: DiaryEntryRequest): Promise<{ jobId: string }> {
-    const response = await fetch(`${API_BASE_URL}/generate`, {
+    const response = await fetch(`${API_BASE_URL}/diary/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
