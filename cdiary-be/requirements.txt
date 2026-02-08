@@ -1,6 +1,6 @@
-flask
-flask-cors
-gunicorn
+fastapi
+uvicorn
+python-multipart
 pydantic
 python-dotenv
 requests

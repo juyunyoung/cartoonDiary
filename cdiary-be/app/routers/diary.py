@@ -1,18 +1,15 @@
-from flask import Blueprint, request, jsonify
+from fastapi import APIRouter, HTTPException
 from app.models.schemas import DiaryEntryRequest
 from app.services import ai_generator
 
-bp = Blueprint('diary', __name__, url_prefix='/api')
+router = APIRouter(prefix="/api/diary", tags=["diary"])
 
-@bp.route('/generate', methods=['POST'])
-def generate_comic():
+@router.post("/generate")
+def generate_comic(diary_entry: DiaryEntryRequest):
     try:
-        data = request.get_json()
-        diary_entry = DiaryEntryRequest(**data)
-        
         # Start background job (threading)
         job_id = ai_generator.start_generation_job(diary_entry)
         
-        return jsonify({"jobId": job_id})
+        return {"jobId": job_id}
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,11 +1,11 @@
-from flask import Blueprint, jsonify
+from fastapi import APIRouter, HTTPException
 from app.services import ai_generator
 
-bp = Blueprint('jobs', __name__, url_prefix='/api/jobs')
+router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
-@bp.route('/<jobId>', methods=['GET'])
-def get_job_status(jobId):
+@router.get("/{jobId}")
+def get_job_status(jobId: str):
     status = ai_generator.get_job_status(jobId)
     if not status:
-        return jsonify({"detail": "Job not found"}), 404
-    return jsonify(status)
+        raise HTTPException(status_code=404, detail="Job not found")
+    return status

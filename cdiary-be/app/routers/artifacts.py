@@ -1,10 +1,10 @@
-from flask import Blueprint, jsonify
+from fastapi import APIRouter
 
-bp = Blueprint('artifacts', __name__, url_prefix='/api/artifacts')
+router = APIRouter(prefix="/api/artifacts", tags=["artifacts"])
 
 # Implementation pending actual logic, keeping it minimal as per original file structure likely
 # Original file content was small, just placeholder usually.
 
-@bp.route('/', methods=['GET'])
+@router.get("/")
 def list_artifacts():
-    return jsonify([])
+    return []

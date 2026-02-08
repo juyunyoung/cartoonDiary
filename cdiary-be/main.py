@@ -1,24 +1,31 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers import diary, jobs, artifacts
 
-app = Flask(__name__)
+app = FastAPI()
 
 # Configure CORS
-CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000"]}})
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Register Blueprints
-app.register_blueprint(diary.bp)
-app.register_blueprint(jobs.bp)
-app.register_blueprint(artifacts.bp)
+# Register Routers
+app.include_router(diary.router)
+app.include_router(jobs.router)
+app.include_router(artifacts.router)
 
-@app.route("/")
+@app.get("/")
 def read_root():
-    return jsonify({"message": "Welcome to Cartoon Diary API"})
+    return {"message": "Welcome to Cartoon Diary API"}
 
-@app.route("/health")
+@app.get("/health")
 def health_check():
-    return jsonify({"status": "ok"})
+    return {"status": "ok"}
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5050, debug=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5050)
