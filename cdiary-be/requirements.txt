@@ -10,3 +10,6 @@ langchain-google-genai
 boto3
 pillow
 aiobotocore
+langgraph
+langchain-core
+langchain-aws
