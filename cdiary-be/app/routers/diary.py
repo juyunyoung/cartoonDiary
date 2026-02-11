@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 import uuid
-from app.models.schemas import DiaryEntryRequest
+from app.agent.models import DiaryEntryRequest, JobStatus
 from app.agent.worker import execute_job
 from app.agent.store import create_job, get_job
-from app.agent.models import JobStatus
 
 router = APIRouter(prefix="/api/diary", tags=["diary"])
 

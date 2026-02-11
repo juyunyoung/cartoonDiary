@@ -10,6 +10,29 @@ class GenerateRequest(BaseModel):
     max_retries: int = Field(default=2, ge=0, le=5)
 
 
+# --- API Schemas (Moved from app/models) ---
+from enum import Enum
+
+class StylePreset(str, Enum):
+    CUTE = "cute"
+    COMEDY = "comedy"
+    DRAMA = "drama"
+    MINIMAL = "minimal"
+
+class GenerationOptions(BaseModel):
+    moreFunny: bool = False
+    focusEmotion: bool = False
+    lessText: bool = False
+
+class DiaryEntryRequest(BaseModel):
+    diaryText: str
+    mood: str
+    stylePreset: StylePreset
+    protagonistName: Optional[str] = "Me"
+    options: GenerationOptions
+# -------------------------------------------
+
+
 class StoryboardCut(BaseModel):
     cut_index: int
     summary: str

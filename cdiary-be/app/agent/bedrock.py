@@ -88,18 +88,10 @@ def invoke_image_model_to_s3(
     """
     # If S3_BUCKET is not set, we cannot upload. For now, raise error or mock?
     # The sample code raises RuntimeError.
-    if not S3_BUCKET:
-        print("Warning: S3_BUCKET not set. Returning mock URL.")
-        # Mock for development without S3
-        return ImageInvokeResult(
-            s3_key=f"mock/{job_id}/{cut_index}.png",
-            s3_uri=f"s3://mock/{job_id}/{cut_index}.png",
-            url="https://via.placeholder.com/1024",
-            raw={}
-        )
 
+    
     br = _bedrock_runtime()
-
+    print(prompt)
     body = {
         "taskType": "TEXT_IMAGE",
         "textToImageParams": {
@@ -112,8 +104,6 @@ def invoke_image_model_to_s3(
             "cfgScale": 8.0
         }
     }
-    # Note: Nova Canvas payload might differ. This is a generic Titan/Nova-like structure.
-    # Adjusting for Nova Canvas specifically if documented, otherwise generic.
     
     resp = br.invoke_model(
         modelId=NOVA_IMAGE_MODEL_ID,
@@ -129,14 +119,25 @@ def invoke_image_model_to_s3(
 
     img_bytes = base64.b64decode(b64_list[0])
     ext = "png" # define default
+    
+    # User's local save logic
+    print(f"Saving image locally to image_test/{job_id}_{cut_index}.png...")
+    os.makedirs("image_test", exist_ok=True)
+    local_path = f"image_test/{job_id}_{cut_index}.png"
+    with open(local_path, "wb") as f:
+        f.write(img_bytes)
 
     file_id = uuid.uuid4().hex
     s3_key = f"{S3_PREFIX}/jobs/{job_id}/cut-{cut_index:02d}-{file_id}.{ext}"
     
-    _upload_bytes_to_s3(S3_BUCKET, s3_key, img_bytes, "image/png")
-
-    s3_uri = f"s3://{S3_BUCKET}/{s3_key}"
-    url = _make_access_url(S3_BUCKET, s3_key)
+    if S3_BUCKET:
+        _upload_bytes_to_s3(S3_BUCKET, s3_key, img_bytes, "image/png")
+        s3_uri = f"s3://{S3_BUCKET}/{s3_key}"
+        url = _make_access_url(S3_BUCKET, s3_key)
+    else:
+        # Fallback if no S3
+        s3_uri = f"file://{os.path.abspath(local_path)}"
+        url = s3_uri  # Use file URI as URL
 
     return ImageInvokeResult(
         s3_key=s3_key,

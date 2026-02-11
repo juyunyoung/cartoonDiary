@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import diary, jobs, artifacts
+from app.routers import diary, artifacts
 
 app = FastAPI()
 
@@ -15,7 +15,6 @@ app.add_middleware(
 
 # Register Routers
 app.include_router(diary.router)
-app.include_router(jobs.router)
 app.include_router(artifacts.router)
 
 @app.get("/")

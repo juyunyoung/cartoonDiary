@@ -97,13 +97,14 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
         out = invoke_image_model_to_s3(p.prompt, state.job_id, p.cut_index, width=1024, height=1024)
         
         images.append(CutImage(
-            cut_index=p.cut_index, 
+            cut_index=p.cut_index, z
             image_url=out.url, 
             meta={"source": "bedrock", "s3_key": out.s3_key}
         ))
 
     state.images = images
     update_job(state.job_id, images=images)
+
     _set_progress(state, 75)
     return state
 
@@ -159,6 +160,10 @@ def retry_failed(state: OrchestrationState) -> OrchestrationState:
     failed = [r for r in state.qa_results if r.status == "FAIL"]
     if not failed:
         return state
+
+    # Images are already saved locally by bedrock.py if configured, or S3 URL is returned.
+    # No need to re-download here unless implementing specific caching logic.
+    # Removing re-download to avoid connection errors on placeholders/local paths.
 
     # 컷별 재시도
     for r in failed:
