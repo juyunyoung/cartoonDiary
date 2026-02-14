@@ -128,7 +128,7 @@ def invoke_image_model_to_s3(
             "imageVariationParams": {
                 "text": cut_prompt, # Variation uses prompt slightly differently, usually just content
                 "images": [b64_img],
-            "similarityStrength": 0.8.5 # 0.0 to 1.0 (Higher = closer to original)
+            "similarityStrength": 0.85 # 0.0 to 1.0 (Higher = closer to original)
             },            
             "imageGenerationConfig": {
                 "quality": "standard",
