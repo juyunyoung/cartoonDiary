@@ -44,6 +44,7 @@ class StoryboardCut(BaseModel):
 
 class Storyboard(BaseModel):
     cuts: List[StoryboardCut]
+    character_appearance: Optional[str] = None
 
 
 class ImagePrompt(BaseModel):

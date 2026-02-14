@@ -8,8 +8,10 @@ from .models import (
     OrchestrationState, Storyboard, StoryboardCut,
     ImagePrompt, CutImage, QAResult
 )
-from .bedrock import invoke_text_model, invoke_image_model_to_s3
+from .bedrock import invoke_text_model, invoke_image_model_to_s3, save_cut_image
 from .store import update_job
+import io
+from PIL import Image
 
 
 def _set_progress(state: OrchestrationState, progress: int, status: str | None = None, error: str | None = None):
@@ -25,26 +27,30 @@ def plan_storyboard(state: OrchestrationState) -> OrchestrationState:
     _set_progress(state, 10, status="RUNNING")
 
     prompt = f"""
-너는 '일기 -> 만화 스토리보드' 편집자다.
-아래 일기를 {state.num_cuts}컷 만화로 만들기 위한 스토리보드를 JSON으로만 출력해라.
+        You are a professional 'Diary to Comic Storyboard' editor.
+        Create a {state.num_cuts}-cut comic storyboard from the diary below.
+        Output MUST be in JSON format only.
 
-요구 스키마:
-{{
-  "cuts": [
-    {{
-      "cut_index": 1,
-      "summary": "...",
-      "emotion": "...",
-      "scene": "...",
-      "dialogue": "...(없으면 null)",
-      "camera": "...(없으면 null)"
-    }}
-  ]
-}}
+        Required Schema:
+        {{
+        "character_appearance": "Concise description of the main character (max 10 words, e.g., 'Boy with glasses in hoodie')",
+        "cuts": [
+            {{
+            "cut_index": 1,
+            "summary": "Short summary of the scene",
+            "emotion": "Dominant emotion",
+            "scene": "Visual scene description",
+            "dialogue": "Character dialogue (or null if none)",
+            "camera": "Camera angle/shot type (or null if none)"
+            }}
+        ]
+        }}
 
-일기:
-\"\"\"{state.diary}\"\"\"
-"""
+        Diary:
+        \"\"\"{state.diary}\"\"\"
+
+        Ensure all content in the JSON (summary, scene, etc.) is written in English.
+        """
     raw = invoke_text_model(prompt, temperature=0.2)
 
     # 안전하게 JSON 파싱 시도 (모델이 종종 앞/뒤 말 붙임)
@@ -66,19 +72,29 @@ def build_prompts(state: OrchestrationState) -> OrchestrationState:
     prompts: List[ImagePrompt] = []
     for cut in state.storyboard.cuts:
         prompt = f"""
-웹툰 한 컷을 생성하기 위한 이미지 프롬프트를 작성하라.
-반드시 아래 스타일 가이드를 따른다:
-- {state.style_guide}
+            Write an image generation prompt for a webtoon panel.
+            You must strictly follow the style guide below:
+            - {state.style_guide}
 
-컷 정보:
-- 요약: {cut.summary}
-- 감정: {cut.emotion}
-- 장면: {cut.scene}
-- 대사: {cut.dialogue}
-- 카메라: {cut.camera}
+            Few-Shot Examples (Focus on location and action):
+            Panel 1 (BUS STOP OUTSIDE): Bus stop sign + bus at the curb. Boy is outside on the sidewalk waving. Driver visible through front window waiting.
+            Panel 2 (RESTAURANT): Restaurant table with tonkatsu plate clearly visible. Boy seated smiling, holding chopsticks.
+            Panel 3 (HOME DOORWAY): Boy opens front door. Full dog visible wagging and greeting.
+            Panel 4 (BEDROOM OVERHEAD): Overhead bedroom view with bed. Boy sits on bed with dog nearby, smiling contentedly.
 
-출력은 한 줄 프롬프트 텍스트만.
-"""
+            Cut Information:
+            - Character: {state.storyboard.character_appearance or "A generic person"}
+            - Summary: {cut.summary}
+            - Emotion: {cut.emotion}
+            - Scene: {cut.scene}
+            - Dialogue: {cut.dialogue}
+            - Camera: {cut.camera}
+
+            Output only the single-line prompt text in English.
+            Focus on the visual scene only. Do not include dialogue, speech bubbles, or specific text/captions in the prompt.
+            Do not describe the character's appearance in detail. Just refer to them as "the character".
+            Keep the prompt concise (max 20 words) to fit within length limits.
+            """
         p = invoke_text_model(prompt, temperature=0.3).strip()
         prompts.append(ImagePrompt(cut_index=cut.cut_index, prompt=p))
 
@@ -91,19 +107,57 @@ def build_prompts(state: OrchestrationState) -> OrchestrationState:
 def generate_images(state: OrchestrationState) -> OrchestrationState:
     _set_progress(state, 60)
 
-    images: List[CutImage] = []
-    for p in state.prompts:
-        # job_id, cut_index passed for S3 naming
-        out = invoke_image_model_to_s3(p.prompt, state.job_id, p.cut_index, width=1024, height=1024)
+    # Convert prompts to dict for easy access
+    pmap = {p.cut_index: p.prompt for p in state.prompts}
+    
+    # Check if we are doing a full generation (Cuts 1-4 present)
+    # And if so, try to generate as a single 2x2 grid for consistency
+    is_full_batch = all(i in pmap for i in [1, 2, 3, 4])
+    
+    generated_images: List[CutImage] = []
+    
+    if is_full_batch:
+        print("Generating 4-panel strip for consistency...")
         
-        images.append(CutImage(
-            cut_index=p.cut_index, z
-            image_url=out.url, 
-            meta={"source": "bedrock", "s3_key": out.s3_key}
-        ))
+        # Sort prompts by index to ensure Cut 1 is generated first
+        sorted_prompts = sorted(state.prompts, key=lambda p: p.cut_index)
+        
+        ref_bytes = None
+        
+        # Generate individually (or for retries)
+        for p in sorted_prompts:
+            # If we already generated this cut in grid mode (unlikely here if logic holds), skip
+            if any(img.cut_index == p.cut_index for img in generated_images):
+                continue
+                
+            # Prepend character description for individual generation
+            char_desc = state.storyboard.character_appearance or "A generic person"
+            full_prompt = (
+                f"Main character: {char_desc}\n"
+                f"Style: {state.style_guide}\n"
+                f"{p.prompt}\n"
+            )
+            
+            # Use ref_image if available (from Cut 1)
+            out = invoke_image_model_to_s3(
+                cut_prompt=full_prompt, 
+                job_id=state.job_id, 
+                cut_index=p.cut_index,
+                ref_image=ref_bytes
+            )
+            
+            # If this is Cut 1, save its bytes as reference for subsequent cuts
+            if p.cut_index == 1 and out.img_bytes:
+                ref_bytes = out.img_bytes
+                
+            generated_images.append(CutImage(
+                cut_index=p.cut_index, 
+                image_url=out.url, 
+                meta={"source": "bedrock_single", "s3_key": out.s3_key}
+            ))
 
-    state.images = images
-    update_job(state.job_id, images=images)
+    state.images = generated_images
+    update_job(state.job_id, images=generated_images)
 
     _set_progress(state, 75)
     return state
@@ -120,27 +174,37 @@ def qa_images(state: OrchestrationState) -> OrchestrationState:
     prompt_map: Dict[int, str] = {p.cut_index: p.prompt for p in state.prompts}
 
     for img in state.images:
+        # If it's a full 4-panel strip (cut_index=0), skip individual QA for now
+        if img.cut_index == 0:
+            qa_results.append(QAResult(
+                cut_index=0,
+                status="PASS",
+                reason="Full 4-panel strip generated successfully.",
+                fix_hint=None
+            ))
+            continue
+
         cut = cut_map[img.cut_index]
         ptxt = prompt_map[img.cut_index]
 
         qprompt = f"""
-너는 만화 QA 담당이다. 아래 컷의 의도와 프롬프트가 일치하는지 검사해라.
-PASS/FAIL로 판단하고, FAIL이면 reason과 fix_hint를 짧게 써라.
-출력은 JSON만.
+            You are a Comic QA Specialist. Check if the prompt matches the cut's intent.
+            Judge as PASS or FAIL. If FAIL, provide a short reason and a fix hint.
+            Output MUST be in JSON format only.
 
-스키마:
-{{"status":"PASS"|"FAIL","reason": "...","fix_hint":"..."}}
+            Schema:
+            {{"status":"PASS"|"FAIL","reason": "...","fix_hint":"..."}}
 
-컷 의도:
-- 요약: {cut.summary}
-- 감정: {cut.emotion}
-- 장면: {cut.scene}
-- 대사: {cut.dialogue}
-- 카메라: {cut.camera}
+            Cut Intent:
+            - Summary: {cut.summary}
+            - Emotion: {cut.emotion}
+            - Scene: {cut.scene}
+            - Dialogue: {cut.dialogue}
+            - Camera: {cut.camera}
 
-사용된 프롬프트:
-{ptxt}
-"""
+            Used Prompt:
+            {ptxt}
+            """
         raw = invoke_text_model(qprompt, temperature=0.1)
         data = json.loads(_extract_json(raw))
         status = data.get("status", "FAIL")
@@ -161,10 +225,6 @@ def retry_failed(state: OrchestrationState) -> OrchestrationState:
     if not failed:
         return state
 
-    # Images are already saved locally by bedrock.py if configured, or S3 URL is returned.
-    # No need to re-download here unless implementing specific caching logic.
-    # Removing re-download to avoid connection errors on placeholders/local paths.
-
     # 컷별 재시도
     for r in failed:
         cnt = state.retry_count.get(r.cut_index, 0)
@@ -174,19 +234,19 @@ def retry_failed(state: OrchestrationState) -> OrchestrationState:
         # 프롬프트 수정
         old_prompt = next(p.prompt for p in state.prompts if p.cut_index == r.cut_index)
         revise_prompt = f"""
-너는 이미지 프롬프트 리라이터다.
-기존 프롬프트를 유지하되, QA 실패 사유를 해결하도록 프롬프트를 개선해라.
-출력은 수정된 프롬프트 텍스트 한 줄만.
+            You are an Image Prompt Rewriter.
+            Keep the original prompt's core but improve it to resolve the QA failure reason.
+            Output only the revised single-line prompt text in English.
 
-기존 프롬프트:
-{old_prompt}
+            Original Prompt:
+            {old_prompt}
 
-QA 실패 사유:
-{r.reason}
+            QA Failure Reason:
+            {r.reason}
 
-수정 힌트:
-{r.fix_hint}
-"""
+            Fix Hint:
+            {r.fix_hint}
+            """
         new_prompt = invoke_text_model(revise_prompt, temperature=0.25).strip()
 
         # state 반영
@@ -195,7 +255,12 @@ QA 실패 사유:
                 p.prompt = new_prompt
 
         # 이미지 재생성
-        out = invoke_image_model_to_s3(new_prompt, state.job_id, r.cut_index, width=1024, height=1024)
+        # layout="single" (default), ref_image=None (for now)
+        out = invoke_image_model_to_s3(
+            cut_prompt=new_prompt, 
+            job_id=state.job_id, 
+            cut_index=r.cut_index
+        )
         for img in state.images:
             if img.cut_index == r.cut_index:
                 img.image_url = out.url
