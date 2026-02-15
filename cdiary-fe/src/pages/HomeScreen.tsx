@@ -47,10 +47,10 @@ export const HomeScreen: React.FC = () => {
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             <p className="mb-4">No diaries yet.</p>
             <button
-              onClick={() => navigate('/write')}
-              className="text-primary font-medium hover:underline"
+              onClick={() => navigate('/character-create')}
+              className="text-primary font-medium hover:underline text-lg font-bold"
             >
-              Write your first diary!
+              첫번째로 당신의 캐릭터를 만드세요
             </button>
           </div>
         ) : (

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import diary, artifacts
+from app.routers import diary, artifacts, image
 
 app = FastAPI()
 
@@ -16,6 +16,7 @@ app.add_middleware(
 # Register Routers
 app.include_router(diary.router)
 app.include_router(artifacts.router)
+app.include_router(image.router, prefix="/api/image", tags=["image"])
 
 @app.get("/")
 def read_root():

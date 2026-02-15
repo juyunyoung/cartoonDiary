@@ -13,6 +13,16 @@ export const api = {
     return response.json();
   },
 
+  async generateImage(prompt: string): Promise<{ image_url: string, s3_key: string, image_data: string }> {
+    const response = await fetch(`${API_BASE_URL}/image/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!response.ok) throw new Error('Failed to generate image');
+    return response.json();
+  },
+
   async getJobStatus(jobId: string): Promise<JobResponse> {
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`);
     if (!response.ok) throw new Error('Failed to get job status');

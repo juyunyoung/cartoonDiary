@@ -43,12 +43,6 @@ def invoke_text_model(prompt: str, temperature: float = 0.3) -> str:
         },
     }
     
-    # Nova Lit/Pro uses Converse API or specific payload. 
-    # Using Converse API structure (messages) in body for invoke_model if model supports it, 
-    # OR better: use converse() method if boto3 supports it. 
-    # User's test.py used client.converse(). Let's use that if possible, but here we use invoke_model with body.
-    # Nova models usually require "messages" in body for invoke_model.
-    
     try:
         resp = br.invoke_model(
             modelId=NOVA_TEXT_MODEL_ID,
@@ -59,12 +53,9 @@ def invoke_text_model(prompt: str, temperature: float = 0.3) -> str:
         data = json.loads(resp["body"].read())
         
         # Standard Nova response parsing
-        # Output is usually in data['output']['message']['content'][0]['text']
         return data["output"]["message"]["content"][0]["text"]
         
     except Exception:
-        # Fallback for older/different models or if payload structure is different
-        # Retry with older "inputText" format if needed, but Nova uses "messages"
         raise
 
 
@@ -77,69 +68,91 @@ class ImageInvokeResult:
     img_bytes: Optional[bytes] = None
 
 
-def invoke_image_model_to_s3(
-    cut_prompt: str,
-    job_id: str,
-    cut_index: int,
-    ref_image: Optional[bytes] = None
-) -> ImageInvokeResult:
+def generate_text_to_image(cut_prompt: str) -> tuple[Dict[str, Any], bytes]:
     """
-    Bedrock Image Model -> S3
+    Generate image using Text-to-Image (Cut 1)
     """
     client = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
     model_id = "amazon.nova-canvas-v1:0"
     
     # 4-Panel Strip Constraints
     text = (
-        "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
-        "No text of any kind. No letters, numbers, logos, watermarks. No speech bubbles. "
-        "Keep the main character consistent in all images (same face, same hairstyle, same outfit). "
-        f"{cut_prompt}" 
-    )
+            "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
+            "No text of any kind. No letters, numbers, logos, watermarks. No speech bubbles. "
+            "Keep the main character consistent in all images (same face, same hairstyle, same outfit). "
+            f"{cut_prompt}" 
+        )
     negative = (
-    "text, letters, words, typography, watermark, logo, signature, "
-    "speech bubble, thought bubble, caption, subtitle, "
-    "photorealistic, realistic, 3d, photo, render, "
-    "blurry, low quality, noise, artifacts, "
-    "harsh shadows, high contrast, neon, oversaturated, "
-    "extra characters, crowd"
+        "text, letters, words, typography, watermark, logo, signature, "
+        "speech bubble, thought bubble, caption, subtitle, "
+        "photorealistic, realistic, 3d, photo, render, "
+        "blurry, low quality, noise, artifacts, "
+        "harsh shadows, high contrast, neon, oversaturated, "
+        "extra characters, crowd, multiple views, split screen, character sheet, reference sheet"
     )
-    print(len(text))
-    if cut_index == 1:
-        body = {
-           "taskType": "TEXT_IMAGE",
-            "textToImageParams": {
-                "text": text,
-                "negativeText": negative
-            },
-            "imageGenerationConfig": {
-                "quality": "standard",
-                "numberOfImages": 1,
-                "height": 1024,
-                "width": 1024,
-                "cfgScale": 8.5,
-                "seed": 42
-            }
+    
+    body = {
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {
+            "text": text,
+            "negativeText": negative
+        },
+        "imageGenerationConfig": {
+            "quality": "standard",
+            "numberOfImages": 1,
+            "height": 1024,
+            "width": 1024,
+            "cfgScale": 8.5,
+            "seed": 42
         }
-    else:
-        b64_img = base64.b64encode(ref_image).decode("utf-8")
-        body = {
-            "taskType": "IMAGE_VARIATION",
-            "imageVariationParams": {
-                "text": cut_prompt, # Variation uses prompt slightly differently, usually just content
-                "images": [b64_img],
-            "similarityStrength": 0.85 # 0.0 to 1.0 (Higher = closer to original)
-            },            
-            "imageGenerationConfig": {
-                "quality": "standard",
-                "numberOfImages": 1,
-                "height": 1024,
-                "width": 1024,
-                "cfgScale": 8.5,
-                "seed": 42
-            }
-        }           
-    print(f"Invoking {model_id} with Body='{text}'...")
+    }
+
+    print(f"Invoking {model_id} (TEXT_IMAGE) with Body='{text}'...")
+
+    response = client.invoke_model(
+        modelId=model_id,
+        body=json.dumps(body),
+        accept="application/json",
+        contentType="application/json"
+    )
+    
+    raw = json.loads(response["body"].read())
+    b64_list = _extract_base64_candidates(raw)
+    if not b64_list:
+        raise ValueError(f"No base64 image found in response. Keys: {list(raw.keys())}")
+
+    img_bytes = base64.b64decode(b64_list[0])
+    return raw, img_bytes
+
+
+def generate_image_variation(cut_prompt: str, ref_image: bytes) -> tuple[Dict[str, Any], bytes]:
+    """
+    Generate image using Image Variation (Cuts 2-4)
+    """
+    client = boto3.client(service_name="bedrock-runtime", region_name="us-east-1")
+    model_id = "amazon.nova-canvas-v1:0"
+    
+    # Text prompt is still used in variation to guide the content
+    b64_img = base64.b64encode(ref_image).decode("utf-8")
+    
+    body = {
+        "taskType": "IMAGE_VARIATION",
+        "imageVariationParams": {
+            "text": cut_prompt, 
+            "images": [b64_img],
+            "similarityStrength": 0.85 
+        },            
+        "imageGenerationConfig": {
+            "quality": "standard",
+            "numberOfImages": 1,
+            "height": 1024,
+            "width": 1024,
+            "cfgScale": 8.5,
+            "seed": 42
+        }
+    }
+    
+    print(f"Invoking {model_id} (IMAGE_VARIATION)...")
 
     response = client.invoke_model(
         modelId=model_id,
@@ -154,6 +167,23 @@ def invoke_image_model_to_s3(
         raise ValueError(f"No base64 image found in response. Keys: {list(raw.keys())}")
 
     img_bytes = base64.b64decode(b64_list[0])
+    return raw, img_bytes
+
+
+def invoke_image_model_to_s3(
+    cut_prompt: str,
+    job_id: str,
+    cut_index: int,
+    ref_image: Optional[bytes] = None
+) -> ImageInvokeResult:
+    """
+    Bedrock Image Model -> S3
+    """
+    
+    if cut_index == 1 or ref_image is None:
+        raw, img_bytes = generate_text_to_image("", cut_prompt)
+    else:
+        raw, img_bytes = generate_image_variation(cut_prompt, ref_image)
     
     # Save image (S3 or Local) using helper
     s3_key, url = save_cut_image(job_id, cut_index, img_bytes)
