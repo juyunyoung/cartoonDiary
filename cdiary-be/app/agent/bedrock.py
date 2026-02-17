@@ -16,8 +16,8 @@ AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 NOVA_TEXT_MODEL_ID = os.getenv("NOVA_TEXT_MODEL_ID", "amazon.nova-lite-v1:0")
 NOVA_IMAGE_MODEL_ID = os.getenv("NOVA_IMAGE_MODEL_ID", "amazon.nova-canvas-v1:0")
 
-S3_BUCKET = os.getenv("S3_BUCKET", "")
-S3_PREFIX = os.getenv("S3_PREFIX", "cartoon-diary").strip("/")
+S3_BUCKET = os.getenv("S3_BUCKET", "cartoon-diary")
+S3_PREFIX = os.getenv("S3_PREFIX", "temp").strip("/")
 S3_PUBLIC = os.getenv("S3_PUBLIC", "false").lower() == "true"
 S3_PRESIGN_EXPIRE_SECONDS = int(os.getenv("S3_PRESIGN_EXPIRE_SECONDS", "3600"))
 
@@ -25,7 +25,7 @@ S3_PRESIGN_EXPIRE_SECONDS = int(os.getenv("S3_PRESIGN_EXPIRE_SECONDS", "3600"))
 def _bedrock_runtime():
     return boto3.client("bedrock-runtime", region_name=AWS_REGION)
 
-
+ 
 def _s3():
     return boto3.client("s3", region_name=AWS_REGION)
 
@@ -68,7 +68,7 @@ class ImageInvokeResult:
     img_bytes: Optional[bytes] = None
 
 
-def generate_text_to_image(cut_prompt: str) -> tuple[Dict[str, Any], bytes]:
+def generate_text_to_image(cut_prompt: str, seed: int = 42) -> tuple[Dict[str, Any], bytes]:
     """
     Generate image using Text-to-Image (Cut 1)
     """
@@ -103,7 +103,7 @@ def generate_text_to_image(cut_prompt: str) -> tuple[Dict[str, Any], bytes]:
             "height": 1024,
             "width": 1024,
             "cfgScale": 8.5,
-            "seed": 42
+            "seed": seed
         }
     }
 
@@ -125,7 +125,7 @@ def generate_text_to_image(cut_prompt: str) -> tuple[Dict[str, Any], bytes]:
     return raw, img_bytes
 
 
-def generate_image_variation(cut_prompt: str, ref_image: bytes) -> tuple[Dict[str, Any], bytes]:
+def generate_image_variation(cut_prompt: str, ref_image: bytes, seed: int = 42) -> tuple[Dict[str, Any], bytes]:
     """
     Generate image using Image Variation (Cuts 2-4)
     """
@@ -148,7 +148,7 @@ def generate_image_variation(cut_prompt: str, ref_image: bytes) -> tuple[Dict[st
             "height": 1024,
             "width": 1024,
             "cfgScale": 8.5,
-            "seed": 42
+            "seed": seed
         }
     }
     
@@ -220,6 +220,31 @@ def save_cut_image(job_id: str, cut_index: int, img_bytes: bytes) -> tuple[str, 
             
         s3_uri = f"file://{os.path.abspath(local_path)}"
         url = s3_uri
+        
+    return s3_key, url
+
+
+def save_profile_image(user_id: str, img_bytes: bytes) -> tuple[str, str]:
+    """
+    Saves profile image to S3 or local disk.
+    Path: profile/{user_id}/profile.png
+    Returns (s3_key, url)
+    """
+    s3_key = f"profile/{user_id}/profile.png"
+    
+    if S3_BUCKET:
+        upload_bytes_to_s3(S3_BUCKET, s3_key, img_bytes, "image/png")
+        s3_uri = f"s3://{S3_BUCKET}/{s3_key}"
+        url = make_access_url(S3_BUCKET, s3_key)
+    else:
+        # Fallback if no S3 (Local Save)
+        os.makedirs(f"image_test/profile/{user_id}", exist_ok=True)
+        local_path = f"image_test/profile/{user_id}/profile.png"
+        print(f"Saving profile image locally to {local_path}...")
+        with open(local_path, "wb") as f:
+            f.write(img_bytes)
+            
+        url = f"file://{os.path.abspath(local_path)}"
         
     return s3_key, url
 

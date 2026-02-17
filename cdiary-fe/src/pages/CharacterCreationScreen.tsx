@@ -44,21 +44,34 @@ export const CharacterCreationScreen: React.FC = () => {
     }
   };
 
-  const handleConfirmSave = () => {
+  const handleConfirmSave = async () => {
     if (!generatedImage) return;
 
-    // Save to LocalStorage
-    const characterData = {
-      gender,
-      hairLength,
-      hasGlasses,
-      hasFreckles,
-      imageUrl: generatedImage
-    };
-    localStorage.setItem('user_character', JSON.stringify(characterData));
+    try {
+      // 1. Generate or retrieve userId (Mocking for now)
+      const userId = localStorage.getItem('userId') || `user_${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem('userId', userId);
 
-    // Navigate to Write Diary
-    navigate('/write');
+      // 2. Save profile image to S3 via backend
+      const { s3_key, image_url } = await api.saveProfileImage(userId, generatedImage);
+
+      // 3. Save character metadata to LocalStorage (with S3 URL this time)
+      const characterData = {
+        gender,
+        hairLength,
+        hasGlasses,
+        hasFreckles,
+        imageUrl: image_url, // Use the permanent S3 URL
+        s3Key: s3_key
+      };
+      localStorage.setItem('user_character', JSON.stringify(characterData));
+
+      // 4. Navigate
+      navigate('/write');
+    } catch (error) {
+      console.error("Failed to save profile:", error);
+      alert("Failed to save character. Please try again.");
+    }
   };
 
   const OptionButton = ({

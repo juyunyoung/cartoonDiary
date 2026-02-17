@@ -1,8 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import diary, artifacts, image
+from app.routers import diary, artifacts, image, auth, users
+from app.database import engine, Base
 
 app = FastAPI()
+
+# Database Initialization (for development with SQLite)
+@app.on_event("startup")
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 # Configure CORS
 app.add_middleware(
@@ -14,9 +21,11 @@ app.add_middleware(
 )
 
 # Register Routers
-app.include_router(diary.router)
-app.include_router(artifacts.router)
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(diary.router, prefix="/api/diary", tags=["diary"])
 app.include_router(image.router, prefix="/api/image", tags=["image"])
+app.include_router(artifacts.router, prefix="/api/artifacts", tags=["artifacts"]) # Keeping this for now if needed
 
 @app.get("/")
 def read_root():

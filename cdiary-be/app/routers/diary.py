@@ -1,37 +1,126 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from pydantic import BaseModel
+from typing import Optional, List
+import datetime
 import uuid
-from app.agent.models import DiaryEntryRequest, JobStatus
-from app.agent.worker import execute_job
-from app.agent.store import create_job, get_job
 
-router = APIRouter(prefix="/api/diary", tags=["diary"])
+from app.database import get_db
+from app.models.models import User, Diary
 
-@router.post("/generate", response_model=JobStatus)
-def generate_comic(diary_entry: DiaryEntryRequest, background_tasks: BackgroundTasks):
-    try:
-        job_id = uuid.uuid4().hex
-        job = JobStatus(job_id=job_id, status="QUEUED", progress=0)
-        create_job(job)
+router = APIRouter()
 
-        # Start background job (agent worker)
-        # Using default values for num_cuts, style_guide, max_retries for now
-        # or we could extend DiaryEntryRequest to include them.
-        background_tasks.add_task(
-            execute_job, 
-            job_id=job_id, 
-            diary=diary_entry.diaryText, 
-            num_cuts=4, 
-            style_guide="따뜻한 파스텔 톤, 웹툰 느낌, 깔끔한 선, 감정이 잘 드러나는 표정", 
-            max_retries=2
-        )
+class DiaryCreate(BaseModel):
+    user_id: str
+    diary_date: datetime.date
+    content: str
+    image_s3_key: Optional[str] = None
+    
+class DiaryUpdate(BaseModel):
+    content: Optional[str] = None
+    image_s3_key: Optional[str] = None
+
+class DiaryResponse(BaseModel):
+    id: str
+    diary_date: datetime.date
+    content: str
+    image_s3_key: Optional[str] = None
+    created_at: datetime.datetime
+
+@router.post("/", response_model=DiaryResponse)
+async def create_diary(diary_in: DiaryCreate, db: AsyncSession = Depends(get_db)):
+    # Check if duplicate for date
+    stmt = select(Diary).where((Diary.user_id == diary_in.user_id) & (Diary.diary_date == diary_in.diary_date))
+    result = await db.execute(stmt)
+    existing = result.scalars().first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Diary already exists for this date")
         
-        return job
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    db_diary = Diary(
+        user_id=diary_in.user_id,
+        diary_date=diary_in.diary_date,
+        content=diary_in.content,
+        image_s3_key=diary_in.image_s3_key
+    )
+    db.add(db_diary)
+    await db.commit()
+    await db.refresh(db_diary)
+    
+    return {
+        "id": str(db_diary.id), # Convert UUID
+        "diary_date": db_diary.diary_date,
+        "content": db_diary.content,
+        "image_s3_key": db_diary.image_s3_key,
+        "created_at": db_diary.created_at
+    }
 
-@router.get("/jobs/{job_id}", response_model=JobStatus)
-def get_comic_job_status(job_id: str):
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
+@router.get("/user/{user_id}", response_model=List[DiaryResponse])
+async def get_user_diaries(user_id: str, db: AsyncSession = Depends(get_db)):
+    stmt = select(Diary).where(Diary.user_id == user_id).order_by(Diary.diary_date.desc())
+    result = await db.execute(stmt)
+    diaries = result.scalars().all()
+    
+    return [
+        {
+            "id": str(d.id),
+            "diary_date": d.diary_date,
+            "content": d.content,
+            "image_s3_key": d.image_s3_key,
+            "created_at": d.created_at
+        }
+        for d in diaries
+    ]
+
+@router.get("/search", response_model=List[DiaryResponse])
+async def search_diaries(user_id: str, query: str, db: AsyncSession = Depends(get_db)):
+    stmt = select(Diary).where(
+        (Diary.user_id == user_id) & 
+        (Diary.content.contains(query))
+    ).order_by(Diary.diary_date.desc())
+    
+    result = await db.execute(stmt)
+    diaries = result.scalars().all()
+    
+    return [
+        {
+            "id": str(d.id),
+            "diary_date": d.diary_date,
+            "content": d.content,
+            "image_s3_key": d.image_s3_key,
+            "created_at": d.created_at
+        }
+        for d in diaries
+    ]
+
+@router.get("/{diary_id}", response_model=DiaryResponse)
+async def get_diary(diary_id: str, db: AsyncSession = Depends(get_db)):
+    stmt = select(Diary).where(Diary.id == diary_id)
+    result = await db.execute(stmt)
+    diary = result.scalars().first()
+    
+    if not diary:
+        raise HTTPException(status_code=404, detail="Diary not found")
+        
+    return {
+        "id": str(diary.id),
+        "diary_date": diary.diary_date,
+        "content": diary.content,
+        "image_s3_key": diary.image_s3_key,
+        "created_at": diary.created_at
+    }
+
+@router.delete("/{diary_id}")
+async def delete_diary(diary_id: str, db: AsyncSession = Depends(get_db)):
+    stmt = select(Diary).where(Diary.id == diary_id)
+    result = await db.execute(stmt)
+    diary = result.scalars().first()
+    
+    if not diary:
+        raise HTTPException(status_code=404, detail="Diary not found")
+        
+    await db.delete(diary)
+    await db.commit()
+    
+    return {"status": "success", "message": "Diary deleted"}

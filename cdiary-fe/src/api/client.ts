@@ -6,10 +6,39 @@ export const api = {
   async generateDiary(data: DiaryEntryRequest): Promise<{ jobId: string }> {
     const response = await fetch(`${API_BASE_URL}/diary/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to start generation');
+    return response.json();
+  },
+
+  async register(data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Registration failed');
+    }
+    return response.json();
+  },
+
+  async login(data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Login failed');
+    }
     return response.json();
   },
 
@@ -20,6 +49,16 @@ export const api = {
       body: JSON.stringify({ prompt }),
     });
     if (!response.ok) throw new Error('Failed to generate image');
+    return response.json();
+  },
+
+  async saveProfileImage(userId: string, imageData: string): Promise<{ s3_key: string, image_url: string }> {
+    const response = await fetch(`${API_BASE_URL}/image/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, imageData }),
+    });
+    if (!response.ok) throw new Error('Failed to save profile image');
     return response.json();
   },
 

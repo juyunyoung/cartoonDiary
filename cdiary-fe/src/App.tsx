@@ -9,11 +9,16 @@ import { ResultScreen } from './pages/ResultScreen';
 import { RegenerateScreen } from './pages/RegenerateScreen';
 import { ShareScreen } from './pages/ShareScreen';
 
+import { SignUpScreen } from './pages/SignUpScreen';
+import { SignInScreen } from './pages/SignInScreen';
+
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LoginScreen />} />
+        <Route path="/signup" element={<SignUpScreen />} />
+        <Route path="/signin" element={<SignInScreen />} />
         <Route path="/home" element={<HomeScreen />} />
         <Route path="/character-create" element={<CharacterCreationScreen />} />
         <Route path="/write" element={<WriteDiaryScreen />} />

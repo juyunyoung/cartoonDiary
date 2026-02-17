@@ -13,3 +13,8 @@ aiobotocore
 langgraph
 langchain-core
 langchain-aws
+sqlalchemy
+asyncpg
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
