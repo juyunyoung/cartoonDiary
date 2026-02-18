@@ -59,6 +59,52 @@ def invoke_text_model(prompt: str, temperature: float = 0.3) -> str:
         raise
 
 
+def generate_storyboard(diary_text: str, style: str = "comic") -> List[Dict[str, str]]:
+    """
+    Analyzes diary text and generates a 4-panel storyboard.
+    Returns a list of 4 dicts: [{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}]
+    """
+    prompt = f"""
+    You are a professional webtoon storyboard artist.
+    Analyze the following diary entry and create a 4-panel comic strip storyboard.
+    
+    Diary Entry:
+    "{diary_text}"
+    
+    Style: {style}
+    
+    Requirements:
+    1. Break down the story into exactly 4 panels (Intro, Development, Twist/Climax, Conclusion).
+    2. For each panel, provide:
+       - "description": Visual description of the scene.
+       - "text": Brief narration or dialogue (keep it short).
+       - "image_prompt": A stable diffusion style prompt for generating the image.
+    
+    Output Format: JSON Array of 4 objects.
+    Example:
+    [
+        {{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}},
+        ...
+    ]
+    
+    RETURN ONLY THE JSON ARRAY. NO MARKDOWN.
+    """
+    
+    response_text = invoke_text_model(prompt)
+    
+    # Clean up response if it contains markdown code blocks
+    cleaned_text = response_text.replace("```json", "").replace("```", "").strip()
+    
+    try:
+        storyboard = json.loads(cleaned_text)
+        return storyboard
+    except json.JSONDecodeError:
+        print(f"Failed to parse storyboard JSON: {response_text}")
+        # Fallback partial parsing or return empty/error
+        raise ValueError("Failed to generate valid storyboard JSON")
+
+
+
 @dataclass
 class ImageInvokeResult:
     s3_key: str
@@ -180,8 +226,9 @@ def invoke_image_model_to_s3(
     Bedrock Image Model -> S3
     """
     
-    if cut_index == 1 or ref_image is None:
-        raw, img_bytes = generate_text_to_image("", cut_prompt)
+    
+    if ref_image is None:
+        raw, img_bytes = generate_text_to_image(cut_prompt, seed=random.randint(0, 1000000))
     else:
         raw, img_bytes = generate_image_variation(cut_prompt, ref_image)
     

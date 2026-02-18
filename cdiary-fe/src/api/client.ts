@@ -62,6 +62,12 @@ export const api = {
     return response.json();
   },
 
+  async getUser(userId: string): Promise<{ id: string, username: string, profile_image_url?: string }> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`);
+    if (!response.ok) throw new Error('Failed to get user');
+    return response.json();
+  },
+
   async getJobStatus(jobId: string): Promise<JobResponse> {
     const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`);
     if (!response.ok) throw new Error('Failed to get job status');

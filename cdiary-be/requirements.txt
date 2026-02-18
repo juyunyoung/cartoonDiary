@@ -18,3 +18,7 @@ asyncpg
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+aiosqlite
+email-validator
+greenlet
+bcrypt==3.2.2

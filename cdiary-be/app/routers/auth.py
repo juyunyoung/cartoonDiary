@@ -43,7 +43,6 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
         username=user.username,
         email=user.email,
         password_hash=hashed_password,
-        name=user.name or user.username,
         status="active"
     )
     

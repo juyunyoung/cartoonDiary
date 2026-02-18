@@ -2,6 +2,9 @@ import os
 import ssl
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # AWS RDS Configuration
 DB_HOST = os.getenv("DB_HOST", "cartoondirary-instance-1.cq9e6aiu6jnt.us-east-1.rds.amazonaws.com")
@@ -11,7 +14,10 @@ DB_NAME = os.getenv("DB_NAME", "postgres")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
 # SSL Context for AWS RDS
-ssl_context = ssl.create_default_context(cafile="certs/global-bundle.pem")
+# Use absolute path for certificate
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+cert_path = os.path.join(BASE_DIR, "certs", "global-bundle.pem")
+ssl_context = ssl.create_default_context(cafile=cert_path)
 ssl_context.verify_mode = ssl.CERT_REQUIRED
 
 # Check if password is set to decide between RDS or SQLite fallback

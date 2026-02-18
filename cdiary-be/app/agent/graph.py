@@ -137,8 +137,15 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
                 f"Style: {state.style_guide}\n"
                 f"{p.prompt}\n"
             )
+            #cut_index가 1인 경우에는 ref_image를 profile_image로 설정
+            if p.cut_index == 1:
+                ref_bytes = state.profile_image
+
+            # Cut 1: Use Profile Image as Reference if available
+            if p.cut_index == 1 and state.profile_image:
+                 ref_bytes = state.profile_image
             
-            # Use ref_image if available (from Cut 1)
+            # Use ref_image if available (from Cut 1 or previous)
             out = invoke_image_model_to_s3(
                 cut_prompt=full_prompt, 
                 job_id=state.job_id, 

@@ -10,10 +10,24 @@ export const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<{ profile_image_url?: string } | null>(null);
 
   useEffect(() => {
     loadArtifacts();
+    loadUserProfile();
   }, []);
+
+  const loadUserProfile = async () => {
+    const userId = localStorage.getItem('userId');
+    if (userId) {
+      try {
+        const user = await api.getUser(userId);
+        setUserProfile(user);
+      } catch (error) {
+        console.error("Failed to load user profile", error);
+      }
+    }
+  };
 
   const loadArtifacts = async () => {
     try {
@@ -45,13 +59,26 @@ export const HomeScreen: React.FC = () => {
           <div className="text-center py-10 text-gray-500">Loading diaries...</div>
         ) : artifacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-            <p className="mb-4">No diaries yet.</p>
-            <button
-              onClick={() => navigate('/character-create')}
-              className="text-primary font-medium hover:underline text-lg font-bold"
-            >
-              첫번째로 당신의 캐릭터를 만드세요
-            </button>
+            {userProfile?.profile_image_url ? (
+              <>
+                <img
+                  src={userProfile.profile_image_url}
+                  alt="My Character"
+                  className="w-32 h-32 rounded-full object-cover mb-4 shadow-lg border-4 border-white dark:border-gray-700"
+                />
+                <p className="mb-4">No diaries yet.</p>
+              </>
+            ) : (
+              <>
+                <p className="mb-4">No diaries yet.</p>
+                <button
+                  onClick={() => navigate('/character-create')}
+                  className="text-primary font-medium hover:underline text-lg font-bold"
+                >
+                  첫번째로 당신의 캐릭터를 만드세요
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

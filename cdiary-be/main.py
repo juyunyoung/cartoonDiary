@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import diary, artifacts, image, auth, users
+from app.routers import diary, artifacts, image, auth, users, jobs
 from app.database import engine, Base
 
 app = FastAPI()
@@ -26,6 +26,7 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(diary.router, prefix="/api/diary", tags=["diary"])
 app.include_router(image.router, prefix="/api/image", tags=["image"])
 app.include_router(artifacts.router, prefix="/api/artifacts", tags=["artifacts"]) # Keeping this for now if needed
+app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 
 @app.get("/")
 def read_root():
