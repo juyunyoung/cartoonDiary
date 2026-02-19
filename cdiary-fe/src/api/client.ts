@@ -90,5 +90,33 @@ export const api = {
     // Placeholder for regeneration API
     console.log("Regenerate not implemented in backend fully yet", data);
     return { jobId: "mock-job-id" };
+  },
+
+  async updateUser(userId: string, data: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update user');
+    return response.json();
+  },
+
+  async deleteUser(userId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete user');
+    return response.json();
+  },
+
+  async deleteArtifact(artifactId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/artifacts/${artifactId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete artifact');
+    return response.json();
   }
 };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, User as UserIcon, Trash2 } from 'lucide-react';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
@@ -40,17 +40,40 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  const handleDelete = async (e: React.MouseEvent, artifactId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this diary?')) {
+      try {
+        await api.deleteArtifact(artifactId);
+        setArtifacts(prev => prev.filter(a => a.artifactId !== artifactId));
+      } catch (error) {
+        console.error("Failed to delete artifact", error);
+        alert("Failed to delete diary.");
+      }
+    }
+  };
+
   return (
     <AppShell>
       <TopBar
         title="Cartoon Diary"
         rightAction={
-          <button
-            onClick={() => navigate('/write')}
-            className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate('/profile')}
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+              title="Edit Profile"
+            >
+              <UserIcon className="w-6 h-6" />
+            </button>
+            <button
+              onClick={() => navigate('/write')}
+              className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary"
+              title="New Diary"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          </div>
         }
       />
 
@@ -89,10 +112,24 @@ export const HomeScreen: React.FC = () => {
                 onClick={() => navigate(`/result/${art.artifactId}`)}
               >
                 {/* Thumbnail */}
+
                 <div
-                  className="w-24 bg-secondary/10 dark:bg-gray-700 bg-cover bg-center flex-shrink-0"
-                  style={{ backgroundImage: `url(${art.thumbnailUrl})` }}
-                />
+                  className="w-24 bg-secondary/10 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center relative overflow-hidden"
+                >
+                  {art.thumbnailUrl ? (
+                    <img
+                      src={art.thumbnailUrl}
+                      alt="Thumbnail"
+                      className="w-full h-full object-cover object-top"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 w-full h-full">
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-1" />
+                      <span className="text-[10px] text-gray-500 font-medium">Generating</span>
+                    </div>
+                  )}
+                </div>
+
 
                 {/* Content */}
                 <div className="flex-1 p-3 flex flex-col justify-center min-w-0">
@@ -102,6 +139,14 @@ export const HomeScreen: React.FC = () => {
                   </div>
                   <div className="font-medium truncate text-gray-900 dark:text-white">{art.summary}</div>
                 </div>
+
+                <button
+                  onClick={(e) => handleDelete(e, art.artifactId)}
+                  className="p-3 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
             ))}
           </div>

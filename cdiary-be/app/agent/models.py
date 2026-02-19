@@ -75,7 +75,7 @@ class JobStatus(BaseModel):
     prompts: Optional[List[ImagePrompt]] = None
     images: Optional[List[CutImage]] = None
     qa_results: Optional[List[QAResult]] = None
-
+    artifactId: Optional[str] = None
 
 class OrchestrationState(BaseModel):
     # input
@@ -96,3 +96,6 @@ class OrchestrationState(BaseModel):
 
     # observability
     trace_id: str
+    
+    # context
+    profile_image: Optional[bytes] = None

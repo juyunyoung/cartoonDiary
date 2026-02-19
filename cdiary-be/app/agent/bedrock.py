@@ -58,6 +58,53 @@ def invoke_text_model(prompt: str, temperature: float = 0.3) -> str:
     except Exception:
         raise
 
+def invoke_visual_qa(prompt: str, image_bytes: bytes, temperature: float = 0.1) -> str:
+    """
+    Nova Multimodal Model Invocation for QA
+    """
+    # Using Nova Lite which supports vision
+    
+    br = _bedrock_runtime()
+    
+    b64_img = base64.b64encode(image_bytes).decode("utf-8")
+    
+    # Nova format for messages
+    body = {
+        "messages": [
+            {
+                "role": "user", 
+                "content": [
+                    {"text": prompt},
+                    {
+                        "image": {
+                            "format": "png", 
+                            "source": {"bytes": b64_img}
+                        }
+                    }
+                ]
+            }
+        ],
+        "inferenceConfig": {
+            "temperature": temperature,
+            "maxTokens": 2000,
+        },
+    }
+    
+    try:
+        resp = br.invoke_model(
+            modelId=NOVA_TEXT_MODEL_ID, 
+            body=json.dumps(body),
+            accept="application/json",
+            contentType="application/json",
+        )
+        data = json.loads(resp["body"].read())
+        return data["output"]["message"]["content"][0]["text"]
+        
+    except Exception as e:
+        print(f"Visual QA Failed: {e}")
+        raise
+
+
 
 def generate_storyboard(diary_text: str, style: str = "comic") -> List[Dict[str, str]]:
     """
@@ -186,7 +233,7 @@ def generate_image_variation(cut_prompt: str, ref_image: bytes, seed: int = 42) 
         "imageVariationParams": {
             "text": cut_prompt, 
             "images": [b64_img],
-            "similarityStrength": 0.85 
+            "similarityStrength": 0.3
         },            
         "imageGenerationConfig": {
             "quality": "standard",
@@ -199,6 +246,7 @@ def generate_image_variation(cut_prompt: str, ref_image: bytes, seed: int = 42) 
     }
     
     print(f"Invoking {model_id} (IMAGE_VARIATION)...")
+    print({cut_prompt})
 
     response = client.invoke_model(
         modelId=model_id,
@@ -220,7 +268,8 @@ def invoke_image_model_to_s3(
     cut_prompt: str,
     job_id: str,
     cut_index: int,
-    ref_image: Optional[bytes] = None
+    ref_image: Optional[bytes] = None,
+    seed: int = 42
 ) -> ImageInvokeResult:
     """
     Bedrock Image Model -> S3
@@ -228,9 +277,9 @@ def invoke_image_model_to_s3(
     
     
     if ref_image is None:
-        raw, img_bytes = generate_text_to_image(cut_prompt, seed=random.randint(0, 1000000))
+        raw, img_bytes = generate_text_to_image(cut_prompt, seed=seed)
     else:
-        raw, img_bytes = generate_image_variation(cut_prompt, ref_image)
+        raw, img_bytes = generate_image_variation(cut_prompt, ref_image, seed=seed)
     
     # Save image (S3 or Local) using helper
     s3_key, url = save_cut_image(job_id, cut_index, img_bytes)

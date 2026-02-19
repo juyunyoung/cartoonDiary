@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.models import Diary, DiaryChunk
 from app.agent.bedrock import make_access_url, S3_BUCKET
 
-router = APIRouter(prefix="/api/artifacts", tags=["artifacts"])
+router = APIRouter()
 
 class Panel(BaseModel):
     text: str
@@ -92,3 +92,23 @@ async def get_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
         stylePreset="comic", # Default for now
         createdAt=diary.created_at
     )
+
+@router.delete("/{artifact_id}")
+async def delete_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
+    # 1. Fetch Diary
+    stmt = select(Diary).where(Diary.id == artifact_id)
+    result = await db.execute(stmt)
+    diary = result.scalars().first()
+    
+    if not diary:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+        
+    # 2. Delete
+    # Associated chunks should be deleted via cascade if configured in DB models, 
+    # but explicit delete is safer if unsure about cascade configuration.
+    # Assuming CASCADE is set on foreign keys in models or database.
+    
+    await db.delete(diary)
+    await db.commit()
+    
+    return {"status": "success", "message": "Artifact deleted"}

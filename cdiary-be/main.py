@@ -11,6 +11,16 @@ async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+from fastapi import Request
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    import sys
+    print(f"REQUEST: {request.method} {request.url.path}", flush=True)
+    response = await call_next(request)
+    print(f"RESPONSE: {response.status_code}", flush=True)
+    return response
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,

@@ -2,17 +2,17 @@ from __future__ import annotations
 import json
 import uuid
 from typing import List, Dict
-
+import boto3
 from langgraph.graph import StateGraph, END
 from .models import (
     OrchestrationState, Storyboard, StoryboardCut,
     ImagePrompt, CutImage, QAResult
 )
-from .bedrock import invoke_text_model, invoke_image_model_to_s3, save_cut_image
-from .store import update_job
+from .bedrock import invoke_text_model, invoke_image_model_to_s3, save_cut_image, invoke_visual_qa, S3_BUCKET
+from app.routers.jobs import update_job
 import io
 from PIL import Image
-
+import random
 
 def _set_progress(state: OrchestrationState, progress: int, status: str | None = None, error: str | None = None):
     payload = {"progress": progress}
@@ -93,7 +93,7 @@ def build_prompts(state: OrchestrationState) -> OrchestrationState:
             Output only the single-line prompt text in English.
             Focus on the visual scene only. Do not include dialogue, speech bubbles, or specific text/captions in the prompt.
             Do not describe the character's appearance in detail. Just refer to them as "the character".
-            Keep the prompt concise (max 20 words) to fit within length limits.
+
             """
         p = invoke_text_model(prompt, temperature=0.3).strip()
         prompts.append(ImagePrompt(cut_index=cut.cut_index, prompt=p))
@@ -135,27 +135,24 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
             full_prompt = (
                 f"Main character: {char_desc}\n"
                 f"Style: {state.style_guide}\n"
-                f"{p.prompt}\n"
+                f"Please create an image with the following content by referring to the character in the reference image. {p.prompt} \n"
             )
-            #cut_index가 1인 경우에는 ref_image를 profile_image로 설정
-            if p.cut_index == 1:
-                ref_bytes = state.profile_image
-
             # Cut 1: Use Profile Image as Reference if available
             if p.cut_index == 1 and state.profile_image:
                  ref_bytes = state.profile_image
-            
+           # seed = random.randint(0, 100)
             # Use ref_image if available (from Cut 1 or previous)
             out = invoke_image_model_to_s3(
                 cut_prompt=full_prompt, 
                 job_id=state.job_id, 
                 cut_index=p.cut_index,
                 ref_image=ref_bytes
+            #    seed=seed
             )
             
             # If this is Cut 1, save its bytes as reference for subsequent cuts
-            if p.cut_index == 1 and out.img_bytes:
-                ref_bytes = out.img_bytes
+            #if p.cut_index == 1 and out.img_bytes:
+            #    ref_bytes = out.img_bytes
                 
             generated_images.append(CutImage(
                 cut_index=p.cut_index, 
@@ -174,56 +171,75 @@ def qa_images(state: OrchestrationState) -> OrchestrationState:
     assert state.storyboard is not None
     _set_progress(state, 85)
 
-    # 데모용 QA: 실제론 멀티모달로 이미지까지 보고 검사해야 함
-    # 지금은 "프롬프트/스토리보드 정합성" 텍스트 검사 형태로만 뼈대
-    qa_results: List[QAResult] = []
-    cut_map: Dict[int, StoryboardCut] = {c.cut_index: c for c in state.storyboard.cuts}
-    prompt_map: Dict[int, str] = {p.cut_index: p.prompt for p in state.prompts}
+    # qa_results: List[QAResult] = []
+    # cut_map: Dict[int, StoryboardCut] = {c.cut_index: c for c in state.storyboard.cuts}
+    # prompt_map: Dict[int, str] = {p.cut_index: p.prompt for p in state.prompts}
 
-    for img in state.images:
-        # If it's a full 4-panel strip (cut_index=0), skip individual QA for now
-        if img.cut_index == 0:
-            qa_results.append(QAResult(
-                cut_index=0,
-                status="PASS",
-                reason="Full 4-panel strip generated successfully.",
-                fix_hint=None
-            ))
-            continue
+    # for img in state.images:
+    #     # If it's a full 4-panel strip (cut_index=0), skip individual QA for now
+    #     if img.cut_index == 0:
+    #         qa_results.append(QAResult(
+    #             cut_index=0,
+    #             status="PASS",
+    #             reason="Full 4-panel strip generated successfully.",
+    #             fix_hint=None
+    #         ))
+    #         continue
 
-        cut = cut_map[img.cut_index]
-        ptxt = prompt_map[img.cut_index]
+    #     cut = cut_map[img.cut_index]
+    #     ptxt = prompt_map[img.cut_index]
 
-        qprompt = f"""
-            You are a Comic QA Specialist. Check if the prompt matches the cut's intent.
-            Judge as PASS or FAIL. If FAIL, provide a short reason and a fix hint.
-            Output MUST be in JSON format only.
+    #     qprompt = f"""
+    #         You are a Comic QA Specialist. Check if the generated image matches the cut's intent.
+    #         Judge as PASS or FAIL. If FAIL, provide a short reason and a fix hint.
+            
+    #         Cut Intent:
+    #         - Summary: {cut.summary}
+    #         - Emotion: {cut.emotion}
+    #         - Scene: {cut.scene}
+    #         - Dialogue: {cut.dialogue}
+    #         - Camera: {cut.camera}
 
-            Schema:
-            {{"status":"PASS"|"FAIL","reason": "...","fix_hint":"..."}}
+    #         Used Prompt:
+    #         {ptxt}
+            
+    #         Output MUST be in JSON format only.
+    #         Schema:
+    #         {{"status":"PASS"|"FAIL","reason": "...","fix_hint":"..."}}
+    #         """
+        
+    #     # Download image for Visual QA
+    #     img_bytes = None
+    #     s3_key = img.meta.get("s3_key")
+    #     if s3_key:
+    #          s3 = boto3.client("s3")
+    #          try:
+    #             obj = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
+    #             img_bytes = obj["Body"].read()
+    #          except Exception as e:
+    #              print(f"Failed to download image for QA: {e}")
+        
+    #     if img_bytes:
+    #          raw = invoke_visual_qa(qprompt, img_bytes, temperature=0.1)
+    #     else:
+    #          # Fallback to text-only if image download fails
+    #          print("Falling back to text-only QA due to image download failure")
+    #          raw = invoke_text_model(qprompt, temperature=0.1)
 
-            Cut Intent:
-            - Summary: {cut.summary}
-            - Emotion: {cut.emotion}
-            - Scene: {cut.scene}
-            - Dialogue: {cut.dialogue}
-            - Camera: {cut.camera}
+    #     data = json.loads(_extract_json(raw))
+    #     status = data.get("status", "FAIL")
+    #     qa_results.append(QAResult(
+    #         cut_index=img.cut_index,
+    #         status=status,
+    #         reason=data.get("reason"),
+    #         fix_hint=data.get("fix_hint"),
+    #     ))
 
-            Used Prompt:
-            {ptxt}
-            """
-        raw = invoke_text_model(qprompt, temperature=0.1)
-        data = json.loads(_extract_json(raw))
-        status = data.get("status", "FAIL")
-        qa_results.append(QAResult(
-            cut_index=img.cut_index,
-            status=status,
-            reason=data.get("reason"),
-            fix_hint=data.get("fix_hint"),
-        ))
-
-    state.qa_results = qa_results
-    update_job(state.job_id, qa_results=qa_results)
+    # state.qa_results = qa_results
+    # print(f"QA Results: {qa_results}")
+    # update_job(state.job_id, qa_results=qa_results)
+    update_job(state.job_id, qa_results='done')
+    
     return state
 
 
@@ -255,7 +271,7 @@ def retry_failed(state: OrchestrationState) -> OrchestrationState:
             {r.fix_hint}
             """
         new_prompt = invoke_text_model(revise_prompt, temperature=0.25).strip()
-
+        print(f"New Prompt: {new_prompt}")
         # state 반영
         for p in state.prompts:
             if p.cut_index == r.cut_index:
@@ -263,11 +279,34 @@ def retry_failed(state: OrchestrationState) -> OrchestrationState:
 
         # 이미지 재생성
         # layout="single" (default), ref_image=None (for now)
-        out = invoke_image_model_to_s3(
-            cut_prompt=new_prompt, 
-            job_id=state.job_id, 
-            cut_index=r.cut_index
-        )
+        s3 = boto3.client("s3")
+        # Fix: Use s3_key from meta, not the full URL
+        ref_key = state.images[0].meta.get("s3_key")
+        if not ref_key:
+            print(f"Warning: No s3_key found for reference image {state.images[0].cut_index}")
+            continue
+
+        try:
+            obj = s3.get_object(Bucket=S3_BUCKET, Key=ref_key)
+            ref_bytes = obj["Body"].read()
+        except Exception as e:
+             print(f"Retry error loading ref image: {e}")
+             ref_bytes = None
+
+        if ref_bytes:
+             out = invoke_image_model_to_s3(
+                cut_prompt=new_prompt, 
+                job_id=state.job_id, 
+                cut_index=r.cut_index,
+                ref_image=ref_bytes
+             )
+        else:
+             # Fallback without Ref
+             out = invoke_image_model_to_s3(
+                cut_prompt=new_prompt, 
+                job_id=state.job_id, 
+                cut_index=r.cut_index
+             )
         for img in state.images:
             if img.cut_index == r.cut_index:
                 img.image_url = out.url
@@ -348,3 +387,6 @@ GRAPH = build_graph()
 
 def run_job(state: OrchestrationState) -> OrchestrationState:
     return GRAPH.invoke(state)
+
+async def run_job_async(state: OrchestrationState) -> OrchestrationState:
+    return await GRAPH.ainvoke(state)

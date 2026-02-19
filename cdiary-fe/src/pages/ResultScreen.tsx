@@ -30,13 +30,6 @@ export const ResultScreen: React.FC = () => {
             <img src={artifact.finalStripUrl} alt="Comic Strip" className="w-full h-full object-contain" />
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-2 mt-4">
-          {/* Individual Panels */}
-          {artifact.panelUrls.map((url, i) => (
-            <img key={i} src={url} alt={`Panel ${i + 1}`} className="rounded-lg shadow-sm w-full aspect-square object-cover" />
-          ))}
-        </div>
       </main>
 
       <div className="p-4 border-t border-primary/10 dark:border-gray-700 bg-white dark:bg-gray-800 flex gap-3">

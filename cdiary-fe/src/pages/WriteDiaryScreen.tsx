@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { Button } from '../components/common/Button';
+import { StylePreset } from '../types';
+import { api } from '../api/client';
 
 import Surprised from '../assets/moods/surprised.png';
 import VeryHappy from '../assets/moods/very_happy.png';
@@ -18,6 +20,8 @@ import Normal from '../assets/moods/normal.png';
 export const WriteDiaryScreen: React.FC = () => {
   const navigate = useNavigate();
   const [text, setText] = useState('');
+  const [style, setStyle] = useState<StylePreset>(StylePreset.CUTE);
+  const [loading, setLoading] = useState(false);
 
   const moods = [
     { id: 'surprised', img: Surprised, label: 'Surprised' },
@@ -34,11 +38,24 @@ export const WriteDiaryScreen: React.FC = () => {
 
   const [mood, setMood] = useState(moods[2].id); // Default to Soft Smile
 
-  const handleNext = () => {
-    if (text.trim().length < 5) return; // Simple validation
-    // Save to local storage or state management would go here
-    localStorage.setItem('draftDiary', JSON.stringify({ text, mood }));
-    navigate('/options');
+  const handleGenerate = async () => {
+    if (text.trim().length < 5) return;
+
+    setLoading(true);
+    try {
+      const { jobId } = await api.generateDiary({
+        diaryText: text,
+        mood,
+        stylePreset: style,
+        options: { moreFunny: false, focusEmotion: false, lessText: false }
+      });
+      navigate(`/generate/${jobId}`);
+    } catch (error) {
+      alert('Failed to start generation');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,18 +87,40 @@ export const WriteDiaryScreen: React.FC = () => {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <div className="text-right text-xs text-primary mt-2">
+        <div className="text-right text-xs text-primary mt-2 mb-6">
           {text.length} chars
+        </div>
+
+        <label className="block text-sm font-medium mb-2">Choose a Style</label>
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {Object.values(StylePreset).map((preset) => (
+            <button
+              key={preset}
+              onClick={() => setStyle(preset)}
+              className={`p-3 rounded-lg border-2 text-left transition-all ${style === preset
+                ? 'border-primary bg-primary/10 dark:bg-primary/20'
+                : 'border-gray-200 dark:border-gray-700 hover:border-blue-200'
+                }`}
+            >
+              <div className="capitalize font-bold text-sm">{preset}</div>
+              <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                {preset === 'cute' ? 'Soft & Adorable' :
+                  preset === 'comedy' ? 'Funny & Exaggerated' :
+                    preset === 'drama' ? 'Serious & Emotional' : 'Clean & Simple'}
+              </div>
+            </button>
+          ))}
         </div>
       </main>
 
       <div className="p-4 border-t border-primary/20">
         <Button
           className="w-full"
-          onClick={handleNext}
+          onClick={handleGenerate}
           disabled={text.trim().length < 5}
+          isLoading={loading}
         >
-          Turn into a Comic
+          Generate Comic
         </Button>
       </div>
     </AppShell>
