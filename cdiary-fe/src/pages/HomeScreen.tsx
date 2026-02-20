@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, User as UserIcon, Trash2 } from 'lucide-react';
+import { Plus, User as UserIcon, Trash2, Search, X } from 'lucide-react';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
@@ -11,6 +11,8 @@ export const HomeScreen: React.FC = () => {
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<{ profile_image_url?: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     loadArtifacts();
@@ -53,6 +55,10 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
+  const filteredArtifacts = artifacts.filter(art =>
+    art.summary?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <AppShell>
       <TopBar
@@ -60,15 +66,25 @@ export const HomeScreen: React.FC = () => {
         rightAction={
           <div className="flex items-center gap-1">
             <button
+              onClick={() => {
+                setIsSearching(!isSearching);
+                if (isSearching) setSearchQuery('');
+              }}
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+              title="Search Diaries"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => navigate('/profile')}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
               title="Edit Profile"
             >
-              <UserIcon className="w-6 h-6" />
+              <UserIcon className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigate('/write')}
-              className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition-colors"
               title="New Diary"
             >
               <Plus className="w-6 h-6" />
@@ -77,10 +93,38 @@ export const HomeScreen: React.FC = () => {
         }
       />
 
+      {/* Search Bar - conditionally rendered */}
+      <div
+        className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out overflow-hidden ${isSearching ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+      >
+        <div className="px-4 py-3 flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="일기 내용 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 bg-gray-100 dark:bg-gray-700 border-transparent rounded-full text-sm focus:border-primary focus:ring-1 focus:ring-primary dark:text-white"
+              autoFocus={isSearching}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
           <div className="text-center py-10 text-gray-500">Loading diaries...</div>
-        ) : artifacts.length === 0 ? (
+        ) : filteredArtifacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             {userProfile?.profile_image_url ? (
               <>
@@ -105,7 +149,7 @@ export const HomeScreen: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {artifacts.map((art) => (
+            {filteredArtifacts.map((art) => (
               <div
                 key={art.artifactId}
                 className="flex bg-white dark:bg-gray-800 rounded-lg shadow cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow h-24"
