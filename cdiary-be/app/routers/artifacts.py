@@ -24,13 +24,62 @@ class ArtifactResponse(BaseModel):
     storyboard: Storyboard
     stylePreset: str
     createdAt: datetime.datetime
+    diaryText: str
+
+import math
+from app.agent.bedrock import get_embedding
+
+def cosine_similarity(v1: List[float], v2: List[float]) -> float:
+    dot = sum(a*b for a, b in zip(v1, v2))
+    n1 = math.sqrt(sum(a*a for a in v1))
+    n2 = math.sqrt(sum(b*b for b in v2))
+    if n1 == 0 or n2 == 0: return 0.0
+    return dot / (n1 * n2)
 
 @router.get("/", response_model=Dict[str, List[Any]])
-async def list_artifacts(limit: int = 20, db: AsyncSession = Depends(get_db)):
+async def list_artifacts(limit: int = 20, query: Optional[str] = None, db: AsyncSession = Depends(get_db)):
     # Simple list of recent diaries
-    stmt = select(Diary).order_by(Diary.created_at.desc()).limit(limit)
+    stmt = select(Diary).order_by(Diary.created_at.desc())
+    if not query:
+        stmt = stmt.limit(limit)
+        
     result = await db.execute(stmt)
     diaries = result.scalars().all()
+    
+    if query:
+        print(f"DEBUG: Performing vector search for query: {query}", flush=True)
+        try:
+            q_emb = get_embedding(query)
+            scored_diaries = []
+            changed = False
+            
+            for d in diaries:
+                # Generate missing embeddings on the fly
+                if not d.content_embedding:
+                    try:
+                        d.content_embedding = get_embedding(d.content)
+                        changed = True
+                    except Exception as e:
+                        print(f"DEBUG: Failed to embed diary {d.id}: {e}", flush=True)
+                        continue
+                
+                if d.content_embedding:
+                    score = cosine_similarity(q_emb, d.content_embedding)
+                    scored_diaries.append((score, d))
+                    
+            if changed:
+                await db.commit()
+                
+            # Sort by similarity score descending
+            scored_diaries.sort(key=lambda x: x[0], reverse=True)
+            
+            # Filter results above an arbitrary semantic similarity threshold or just pick top N
+            # A threshold of 0.25 is usually good for Amazon Titan Text Embeddings
+            diaries = [d for score, d in scored_diaries if score > 0.25][:limit]
+        except Exception as e:
+            print(f"DEBUG: Vector search failed, falling back. Error: {e}", flush=True)
+            # Fallback to simple matching if embeddings fail
+            diaries = [d for d in diaries if query.lower() in d.content.lower()][:limit]
     
     items = []
     for d in diaries:
@@ -90,7 +139,8 @@ async def get_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
         panelUrls=panel_urls,
         storyboard=Storyboard(panels=panels_data),
         stylePreset="comic", # Default for now
-        createdAt=diary.created_at
+        createdAt=diary.created_at,
+        diaryText=diary.content
     )
 
 @router.delete("/{artifact_id}")

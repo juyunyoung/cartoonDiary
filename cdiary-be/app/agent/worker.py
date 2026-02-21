@@ -96,7 +96,7 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
         initial_state = OrchestrationState(
             job_id=job_id,
             diary=request.diaryText,
-            num_cuts=4,
+            num_cuts=1,
             style_guide=style_guide,
             max_retries=2,
             trace_id=trace_id,

@@ -104,6 +104,24 @@ def invoke_visual_qa(prompt: str, image_bytes: bytes, temperature: float = 0.1) 
         print(f"Visual QA Failed: {e}")
         raise
 
+def get_embedding(text: str) -> List[float]:
+    """
+    Generate vector embeddings using Amazon Titan Text Embeddings v2
+    """
+    br = _bedrock_runtime()
+    body = {
+        "inputText": text,
+        "dimensions": 256,
+        "normalize": True
+    }
+    resp = br.invoke_model(
+        modelId="amazon.titan-embed-text-v2:0",
+        body=json.dumps(body),
+        accept="application/json",
+        contentType="application/json"
+    )
+    result = json.loads(resp["body"].read())
+    return result.get("embedding", [])
 
 
 def generate_storyboard(diary_text: str, style: str = "comic") -> List[Dict[str, str]]:

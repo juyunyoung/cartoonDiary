@@ -10,6 +10,15 @@ app = FastAPI()
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Safely add content_embedding column if it doesn't exist for vector search
+        try:
+            from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE diaries ADD COLUMN content_embedding JSON"))
+            print("Added content_embedding column to diaries table.", flush=True)
+        except Exception:
+            # Column likely already exists
+            pass
 
 from fastapi import Request
 

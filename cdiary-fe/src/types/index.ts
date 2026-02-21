@@ -53,6 +53,7 @@ export interface ArtifactResponse {
   storyboard: Storyboard;
   stylePreset: string;
   createdAt: string;
+  diaryText: string;
 }
 
 export interface ArtifactSummary {

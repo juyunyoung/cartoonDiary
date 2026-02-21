@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Literal
 
 class GenerateRequest(BaseModel):
     diary: str = Field(..., min_length=1)
-    num_cuts: int = Field(default=4, ge=1, le=12)
+    num_cuts: int = Field(default=1, ge=1, le=12)
     style_guide: str = Field(default="따뜻한 파스텔 톤, 웹툰 느낌, 깔끔한 선, 감정이 잘 드러나는 표정")
     max_retries: int = Field(default=2, ge=0, le=5)
 

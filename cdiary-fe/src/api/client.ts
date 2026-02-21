@@ -74,8 +74,13 @@ export const api = {
     return response.json();
   },
 
-  async getArtifacts(limit: number = 20): Promise<{ items: ArtifactSummary[] }> {
-    const response = await fetch(`${API_BASE_URL}/artifacts?limit=${limit}`);
+  async getArtifacts(limit: number = 7, query?: string): Promise<{ items: ArtifactSummary[] }> {
+    const url = new URL(`${API_BASE_URL}/artifacts`);
+    url.searchParams.append('limit', limit.toString());
+    if (query) {
+      url.searchParams.append('query', query);
+    }
+    const response = await fetch(url.toString());
     if (!response.ok) throw new Error('Failed to list artifacts');
     return response.json();
   },

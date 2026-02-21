@@ -73,6 +73,7 @@ class Diary(Base):
     
     diary_date = Column(Date, nullable=False)
     content = Column(Text, nullable=False)
+    content_embedding = Column(JSON, nullable=True) # Used for simple vector search
     image_s3_key = Column(Text)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

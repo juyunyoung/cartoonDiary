@@ -110,55 +110,45 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
     # Convert prompts to dict for easy access
     pmap = {p.cut_index: p.prompt for p in state.prompts}
     
-    # Check if we are doing a full generation (Cuts 1-4 present)
-    # And if so, try to generate as a single 2x2 grid for consistency
-    is_full_batch = all(i in pmap for i in [1, 2, 3, 4])
-    
     generated_images: List[CutImage] = []
     
-    if is_full_batch:
-        print("Generating 4-panel strip for consistency...")
-        
-        # Sort prompts by index to ensure Cut 1 is generated first
-        sorted_prompts = sorted(state.prompts, key=lambda p: p.cut_index)
-        
-        ref_bytes = None
-        
-        # Generate individually (or for retries)
-        for p in sorted_prompts:
-            # If we already generated this cut in grid mode (unlikely here if logic holds), skip
-            if any(img.cut_index == p.cut_index for img in generated_images):
-                continue
-                
-            # Prepend character description for individual generation
-            char_desc = state.storyboard.character_appearance or "A generic person"
-            full_prompt = (
-                f"Main character: {char_desc}\n"
-                f"Style: {state.style_guide}\n"
-                f"Please create an image with the following content by referring to the character in the reference image. {p.prompt} \n"
-            )
-            # Cut 1: Use Profile Image as Reference if available
-            if p.cut_index == 1 and state.profile_image:
-                 ref_bytes = state.profile_image
-           # seed = random.randint(0, 100)
-            # Use ref_image if available (from Cut 1 or previous)
-            out = invoke_image_model_to_s3(
-                cut_prompt=full_prompt, 
-                job_id=state.job_id, 
-                cut_index=p.cut_index,
-                ref_image=ref_bytes
-            #    seed=seed
-            )
+    print(f"Generating {len(state.prompts)}-panel strip for consistency...")
+    
+    # Sort prompts by index to ensure Cut 1 is generated first
+    sorted_prompts = sorted(state.prompts, key=lambda p: p.cut_index)
+    
+    ref_bytes = None
+    
+    # Generate individually (or for retries)
+    for p in sorted_prompts:
+        # If we already generated this cut, skip
+        if any(img.cut_index == p.cut_index for img in generated_images):
+            continue
             
-            # If this is Cut 1, save its bytes as reference for subsequent cuts
-            #if p.cut_index == 1 and out.img_bytes:
-            #    ref_bytes = out.img_bytes
-                
-            generated_images.append(CutImage(
-                cut_index=p.cut_index, 
-                image_url=out.url, 
-                meta={"source": "bedrock_single", "s3_key": out.s3_key}
-            ))
+        # Prepend character description for individual generation
+        char_desc = state.storyboard.character_appearance or "A generic person"
+        full_prompt = (
+            f"Main character: {char_desc}\n"
+            f"Style: {state.style_guide}\n"
+            f"Please create an image with the following content by referring to the character in the reference image. {p.prompt} \n"
+        )
+        # Cut 1: Use Profile Image as Reference if available
+        if p.cut_index == 1 and state.profile_image:
+             ref_bytes = state.profile_image
+             
+        # Use ref_image if available (from Cut 1 or previous)
+        out = invoke_image_model_to_s3(
+            cut_prompt=full_prompt, 
+            job_id=state.job_id, 
+            cut_index=p.cut_index,
+            ref_image=ref_bytes
+        )
+        
+        generated_images.append(CutImage(
+            cut_index=p.cut_index, 
+            image_url=out.url, 
+            meta={"source": "bedrock_single", "s3_key": out.s3_key}
+        ))
 
     state.images = generated_images
     update_job(state.job_id, images=generated_images)

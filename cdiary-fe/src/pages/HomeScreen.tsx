@@ -15,9 +15,15 @@ export const HomeScreen: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    loadArtifacts();
     loadUserProfile();
   }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadArtifacts();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const loadUserProfile = async () => {
     const userId = localStorage.getItem('userId');
@@ -33,7 +39,8 @@ export const HomeScreen: React.FC = () => {
 
   const loadArtifacts = async () => {
     try {
-      const data = await api.getArtifacts();
+      setLoading(true);
+      const data = await api.getArtifacts(20, searchQuery);
       setArtifacts(data.items);
     } catch (error) {
       console.error(error);
@@ -54,10 +61,6 @@ export const HomeScreen: React.FC = () => {
       }
     }
   };
-
-  const filteredArtifacts = artifacts.filter(art =>
-    art.summary?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <AppShell>
@@ -124,7 +127,7 @@ export const HomeScreen: React.FC = () => {
       <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
           <div className="text-center py-10 text-gray-500">Loading diaries...</div>
-        ) : filteredArtifacts.length === 0 ? (
+        ) : artifacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             {userProfile?.profile_image_url ? (
               <>
@@ -149,7 +152,7 @@ export const HomeScreen: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredArtifacts.map((art) => (
+            {artifacts.map((art) => (
               <div
                 key={art.artifactId}
                 className="flex bg-white dark:bg-gray-800 rounded-lg shadow cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow h-24"
