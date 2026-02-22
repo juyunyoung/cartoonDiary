@@ -76,6 +76,11 @@ class Diary(Base):
     content_embedding = Column(JSON, nullable=True) # Used for simple vector search
     image_s3_key = Column(Text)
     
+    # Generation parameters for regeneration
+    mood = Column(Text)
+    style_preset = Column(String(50))
+    generation_options = Column(JSON)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

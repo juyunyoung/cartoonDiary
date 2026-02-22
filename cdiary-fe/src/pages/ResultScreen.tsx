@@ -10,12 +10,34 @@ export const ResultScreen: React.FC = () => {
   const { artifactId } = useParams<{ artifactId: string }>();
   const navigate = useNavigate();
   const [artifact, setArtifact] = useState<ArtifactResponse | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     if (artifactId) {
       api.getArtifact(artifactId).then(setArtifact).catch(console.error);
     }
   }, [artifactId]);
+
+  const handleRegenerate = async () => {
+    if (!artifact) return;
+
+    setIsRegenerating(true);
+    try {
+      const { jobId } = await api.generateDiary({
+        diaryText: artifact.diaryText,
+        mood: artifact.mood || 'normal',
+        stylePreset: artifact.stylePreset as any,
+        diaryDate: artifact.diaryDate as any,
+        options: artifact.options || { moreFunny: false, focusEmotion: false, lessText: false }
+      });
+      navigate(`/generate/${jobId}`);
+    } catch (error) {
+      alert('Failed to start regeneration');
+      console.error(error);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   if (!artifact) return <div>Loading...</div>;
 
@@ -43,7 +65,12 @@ export const ResultScreen: React.FC = () => {
       </main>
 
       <div className="p-4 border-t border-primary/10 dark:border-gray-700 bg-white dark:bg-gray-800 flex gap-3">
-        <Button variant="secondary" className="flex-1" onClick={() => alert('Regenerate clicked')}>
+        <Button
+          variant="secondary"
+          className="flex-1"
+          onClick={handleRegenerate}
+          isLoading={isRegenerating}
+        >
           Regenerate
         </Button>
         <Button className="flex-1" onClick={() => alert('Saved!')}>

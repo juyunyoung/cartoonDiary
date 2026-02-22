@@ -24,15 +24,18 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
         update_job(job_id, JobStatus.READING_DIARY, "Reading your diary...", 10)
         
         async with AsyncSessionLocal() as db:
-            today = datetime.date.today()
+            target_date = request.diaryDate or datetime.date.today()
             # Check existing diary
-            stmt = select(Diary).where((Diary.user_id == user_id) & (Diary.diary_date == today))
+            stmt = select(Diary).where((Diary.user_id == user_id) & (Diary.diary_date == target_date))
             result = await db.execute(stmt)
             existing_diary = result.scalars().first()
             
             if existing_diary:
                 db_diary = existing_diary
                 db_diary.content = request.diaryText
+                db_diary.mood = request.mood
+                db_diary.style_preset = request.stylePreset
+                db_diary.generation_options = request.options.dict() if request.options else None
                 # Clear old chunks
                 await db.execute(delete(DiaryChunk).where(DiaryChunk.diary_id == db_diary.id))
             else:
@@ -42,9 +45,12 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
                     # job_id is hex string from uuid.uuid4().hex (32 chars). 
                     # Diary.id is GUID.
                     user_id=user_id,
-                    diary_date=today,
+                    diary_date=target_date,
                     content=request.diaryText,
-                    image_s3_key=None # No image yet
+                    image_s3_key=None, # No image yet
+                    mood=request.mood,
+                    style_preset=request.stylePreset,
+                    generation_options=request.options.dict() if request.options else None
                 )
                 db.add(db_diary)
             

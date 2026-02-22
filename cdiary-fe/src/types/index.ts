@@ -15,6 +15,7 @@ export interface DiaryEntryRequest {
   diaryText: string;
   mood: string;
   stylePreset: StylePreset;
+  diaryDate?: string;
   protagonistName?: string;
   options: GenerationOptions;
 }
@@ -53,7 +54,10 @@ export interface ArtifactResponse {
   storyboard: Storyboard;
   stylePreset: string;
   createdAt: string;
+  diaryDate: string;
   diaryText: string;
+  mood?: string;
+  options?: any;
 }
 
 export interface ArtifactSummary {

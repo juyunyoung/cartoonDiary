@@ -1,24 +1,9 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from enum import Enum
+import datetime
 
-class StylePreset(str, Enum):
-    CUTE = "cute"
-    COMEDY = "comedy"
-    DRAMA = "drama"
-    MINIMAL = "minimal"
-
-class GenerationOptions(BaseModel):
-    moreFunny: bool = False
-    focusEmotion: bool = False
-    lessText: bool = False
-
-class DiaryEntryRequest(BaseModel):
-    diaryText: str
-    mood: str
-    stylePreset: StylePreset
-    protagonistName: Optional[str] = "Me"
-    options: GenerationOptions
+from app.agent.models import StylePreset, GenerationOptions, DiaryEntryRequest
 
 class JobStatusEnum(str, Enum):
     reading_diary = "READING_DIARY"

@@ -1,6 +1,8 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Literal
+import datetime
+from datetime import date
 
 
 class GenerateRequest(BaseModel):
@@ -18,6 +20,7 @@ class StylePreset(str, Enum):
     COMEDY = "comedy"
     DRAMA = "drama"
     MINIMAL = "minimal"
+    COMIC = "comic"
 
 class GenerationOptions(BaseModel):
     moreFunny: bool = False
@@ -28,6 +31,7 @@ class DiaryEntryRequest(BaseModel):
     diaryText: str
     mood: str
     stylePreset: StylePreset
+    diaryDate: Optional[date] = None
     protagonistName: Optional[str] = "Me"
     options: GenerationOptions
 # -------------------------------------------
@@ -99,3 +103,6 @@ class OrchestrationState(BaseModel):
     
     # context
     profile_image: Optional[bytes] = None
+
+DiaryEntryRequest.model_rebuild()
+OrchestrationState.model_rebuild()

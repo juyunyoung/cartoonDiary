@@ -10,6 +10,8 @@ class JobStatus(str, Enum):
     BUILDING_STORYBOARD = "BUILDING_STORYBOARD"
     GENERATING_IMAGES = "GENERATING_IMAGES"
     COMPOSING_STRIP = "COMPOSING_STRIP"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
     DONE = "DONE"
     FAILED = "FAILED"
 
@@ -28,7 +30,34 @@ JOBS: Dict[str, Dict[str, Any]] = {}
 import logging
 import sys
 
+import asyncio
+import json
+from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
+
 # logger = logging.getLogger("uvicorn") # Switching to print for visibility
+
+@router.get("/stream")
+async def stream_jobs():
+    """Server-Sent Events endpoint to stream active jobs state."""
+    async def event_generator():
+        while True:
+            # Send current jobs state as JSON string
+            # Copy to avoid "dictionary changed size during iteration"
+            current_jobs = dict(JOBS)
+            yield f"data: {json.dumps(jsonable_encoder(current_jobs))}\n\n"
+            await asyncio.sleep(1) # Emit every second
+            
+    return StreamingResponse(
+        event_generator(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no" # Disable buffering for Nginx if any
+        }
+    )
+
 
 @router.get("/debug", response_model=Dict[str, Any])
 async def debug_jobs():

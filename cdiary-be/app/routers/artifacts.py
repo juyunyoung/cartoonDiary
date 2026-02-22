@@ -24,7 +24,10 @@ class ArtifactResponse(BaseModel):
     storyboard: Storyboard
     stylePreset: str
     createdAt: datetime.datetime
+    diaryDate: datetime.date
     diaryText: str
+    mood: Optional[str] = None
+    options: Optional[Dict[str, Any]] = None
 
 import math
 from app.agent.bedrock import get_embedding
@@ -138,9 +141,12 @@ async def get_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
         finalStripUrl=final_url,
         panelUrls=panel_urls,
         storyboard=Storyboard(panels=panels_data),
-        stylePreset="comic", # Default for now
+        stylePreset=diary.style_preset or "comic",
         createdAt=diary.created_at,
-        diaryText=diary.content
+        diaryDate=diary.diary_date,
+        diaryText=diary.content,
+        mood=diary.mood,
+        options=diary.generation_options
     )
 
 @router.delete("/{artifact_id}")

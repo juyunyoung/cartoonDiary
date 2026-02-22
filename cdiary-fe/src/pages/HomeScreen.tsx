@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { Plus, User as UserIcon, Trash2, Search, X } from 'lucide-react';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
-import { api } from '../api/client';
+import { api, API_BASE_URL } from '../api/client';
+
 import { ArtifactSummary } from '../types';
 
 export const HomeScreen: React.FC = () => {
@@ -13,6 +15,9 @@ export const HomeScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<{ profile_image_url?: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [activeJobs, setActiveJobs] = useState<Record<string, any>>({});
+  const completedJobIds = useRef(new Set<string>());
+
 
   useEffect(() => {
     loadUserProfile();
@@ -24,6 +29,51 @@ export const HomeScreen: React.FC = () => {
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  useEffect(() => {
+    // Connect to SSE stream
+    const sseUrl = `${API_BASE_URL}/jobs/stream`;
+    console.log(`Connecting to SSE: ${sseUrl}`);
+    const sse = new EventSource(sseUrl);
+
+    sse.onopen = () => {
+      console.log("SSE Connection opened");
+    };
+
+    sse.onmessage = (event) => {
+      try {
+        console.log("SSE Received data:", event.data);
+        const jobsData = JSON.parse(event.data) as Record<string, { status: string; progress: number; step: string; artifactId?: string }>;
+        setActiveJobs(jobsData);
+        // console.log("SSE Update:", jobsData);
+
+        // Only trigger reload if a job JUST transitioned to DONE
+        const newlyDoneJobs = Object.entries(jobsData).filter(([id, job]) =>
+          job.status === "DONE" && !completedJobIds.current.has(id)
+        );
+
+        if (newlyDoneJobs.length > 0) {
+          console.log("SSE: Detected newly finished jobs", newlyDoneJobs);
+          newlyDoneJobs.forEach(([id]) => completedJobIds.current.add(id));
+          loadArtifacts(false); // background refresh
+        }
+
+      } catch (err) {
+        console.error("Failed to parse SSE data", err);
+      }
+    };
+
+
+    sse.onerror = (err) => {
+      console.error("SSE Connection failed", err);
+      sse.close();
+    };
+
+    return () => {
+      sse.close();
+    };
+  }, []);
+
 
   const loadUserProfile = async () => {
     const userId = localStorage.getItem('userId');
@@ -37,17 +87,18 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const loadArtifacts = async () => {
+  const loadArtifacts = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const data = await api.getArtifacts(20, searchQuery);
       setArtifacts(data.items);
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
 
   const handleDelete = async (e: React.MouseEvent, artifactId: string) => {
     e.stopPropagation();
@@ -163,18 +214,45 @@ export const HomeScreen: React.FC = () => {
                 <div
                   className="w-24 bg-secondary/10 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center relative overflow-hidden"
                 >
-                  {art.thumbnailUrl ? (
-                    <img
-                      src={art.thumbnailUrl}
-                      alt="Thumbnail"
-                      className="w-full h-full object-cover object-top"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 w-full h-full">
-                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-1" />
-                      <span className="text-[10px] text-gray-500 font-medium">Generating</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const activeJob = Object.values(activeJobs).find(job =>
+                      job.artifactId &&
+                      art.artifactId &&
+                      job.artifactId.toLowerCase() === art.artifactId.toLowerCase()
+                    );
+
+                    if (art.thumbnailUrl) {
+                      return (
+                        <img
+                          src={art.thumbnailUrl}
+                          alt="Thumbnail"
+                          className="w-full h-full object-cover object-top"
+                        />
+                      );
+                    }
+                    return (
+                      <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 w-full h-full p-2">
+                        {activeJob ? (
+                          <>
+                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-1 overflow-hidden">
+                              <div
+                                className="bg-primary h-1.5 rounded-full transition-all duration-300 pointer-events-none"
+                                style={{ width: `${Math.max(10, activeJob.progress || 0)}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-[9px] text-gray-500 font-medium truncate w-full text-center">
+                              {activeJob.step || "Generating"}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-1" />
+                            <span className="text-[10px] text-gray-500 font-medium">Generating</span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
 
