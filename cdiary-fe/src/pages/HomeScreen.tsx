@@ -1,22 +1,24 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
-import { Plus, User as UserIcon, Trash2, Search, X } from 'lucide-react';
+import { Plus, User as UserIcon, Search, X } from 'lucide-react';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
-import { api, API_BASE_URL } from '../api/client';
+import { api } from '../api/client';
 
 import { ArtifactSummary } from '../types';
+import { DiaryList } from '../components/home/DiaryList';
+
 
 export const HomeScreen: React.FC = () => {
+
   const navigate = useNavigate();
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<{ profile_image_url?: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [activeJobs, setActiveJobs] = useState<Record<string, any>>({});
-  const completedJobIds = useRef(new Set<string>());
+
 
 
   useEffect(() => {
@@ -30,49 +32,7 @@ export const HomeScreen: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  useEffect(() => {
-    // Connect to SSE stream
-    const sseUrl = `${API_BASE_URL}/jobs/stream`;
-    console.log(`Connecting to SSE: ${sseUrl}`);
-    const sse = new EventSource(sseUrl);
 
-    sse.onopen = () => {
-      console.log("SSE Connection opened");
-    };
-
-    sse.onmessage = (event) => {
-      try {
-        console.log("SSE Received data:", event.data);
-        const jobsData = JSON.parse(event.data) as Record<string, { status: string; progress: number; step: string; artifactId?: string }>;
-        setActiveJobs(jobsData);
-        // console.log("SSE Update:", jobsData);
-
-        // Only trigger reload if a job JUST transitioned to DONE
-        const newlyDoneJobs = Object.entries(jobsData).filter(([id, job]) =>
-          job.status === "DONE" && !completedJobIds.current.has(id)
-        );
-
-        if (newlyDoneJobs.length > 0) {
-          console.log("SSE: Detected newly finished jobs", newlyDoneJobs);
-          newlyDoneJobs.forEach(([id]) => completedJobIds.current.add(id));
-          loadArtifacts(false); // background refresh
-        }
-
-      } catch (err) {
-        console.error("Failed to parse SSE data", err);
-      }
-    };
-
-
-    sse.onerror = (err) => {
-      console.error("SSE Connection failed", err);
-      sse.close();
-    };
-
-    return () => {
-      sse.close();
-    };
-  }, []);
 
 
   const loadUserProfile = async () => {
@@ -87,7 +47,7 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const loadArtifacts = async (showLoading = true) => {
+  const loadArtifacts = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
       const data = await api.getArtifacts(20, searchQuery);
@@ -97,10 +57,10 @@ export const HomeScreen: React.FC = () => {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [searchQuery]);
 
 
-  const handleDelete = async (e: React.MouseEvent, artifactId: string) => {
+  const handleDelete = useCallback(async (e: React.MouseEvent, artifactId: string) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this diary?')) {
       try {
@@ -111,7 +71,7 @@ export const HomeScreen: React.FC = () => {
         alert("Failed to delete diary.");
       }
     }
-  };
+  }, []);
 
   return (
     <AppShell>
@@ -202,79 +162,11 @@ export const HomeScreen: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="space-y-4">
-            {artifacts.map((art) => (
-              <div
-                key={art.artifactId}
-                className="flex bg-white dark:bg-gray-800 rounded-lg shadow cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow h-24"
-                onClick={() => navigate(`/result/${art.artifactId}`)}
-              >
-                {/* Thumbnail */}
-
-                <div
-                  className="w-24 bg-secondary/10 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center relative overflow-hidden"
-                >
-                  {(() => {
-                    const activeJob = Object.values(activeJobs).find(job =>
-                      job.artifactId &&
-                      art.artifactId &&
-                      job.artifactId.toLowerCase() === art.artifactId.toLowerCase()
-                    );
-
-                    if (art.thumbnailUrl) {
-                      return (
-                        <img
-                          src={art.thumbnailUrl}
-                          alt="Thumbnail"
-                          className="w-full h-full object-cover object-top"
-                        />
-                      );
-                    }
-                    return (
-                      <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 w-full h-full p-2">
-                        {activeJob ? (
-                          <>
-                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-1 overflow-hidden">
-                              <div
-                                className="bg-primary h-1.5 rounded-full transition-all duration-300 pointer-events-none"
-                                style={{ width: `${Math.max(10, activeJob.progress || 0)}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-[9px] text-gray-500 font-medium truncate w-full text-center">
-                              {activeJob.step || "Generating"}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-1" />
-                            <span className="text-[10px] text-gray-500 font-medium">Generating</span>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-
-                {/* Content */}
-                <div className="flex-1 p-3 flex flex-col justify-center min-w-0">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-2">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{art.date}</span>
-                    <span className="px-1.5 py-0.5 bg-secondary/20 dark:bg-gray-700 rounded text-[10px] uppercase tracking-wide">{art.stylePreset}</span>
-                  </div>
-                  <div className="font-medium truncate text-gray-900 dark:text-white">{art.summary}</div>
-                </div>
-
-                <button
-                  onClick={(e) => handleDelete(e, art.artifactId)}
-                  className="p-3 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            ))}
-          </div>
+          <DiaryList
+            artifacts={artifacts}
+            onDelete={handleDelete}
+            onJobDone={loadArtifacts}
+          />
         )}
       </main>
 
