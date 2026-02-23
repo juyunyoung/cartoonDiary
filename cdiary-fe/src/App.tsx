@@ -11,6 +11,7 @@ import { ShareScreen } from './pages/ShareScreen';
 
 import { SignUpScreen } from './pages/SignUpScreen';
 import { SignInScreen } from './pages/SignInScreen';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 function App() {
   return (
@@ -19,14 +20,17 @@ function App() {
         <Route path="/" element={localStorage.getItem('token') ? <Navigate to="/home" replace /> : <LoginScreen />} />
         <Route path="/signup" element={<SignUpScreen />} />
         <Route path="/signin" element={<SignInScreen />} />
-        <Route path="/home" element={<HomeScreen />} />
-        <Route path="/profile" element={<UserProfileScreen />} />
-        <Route path="/character-create" element={<CharacterCreationScreen />} />
-        <Route path="/write" element={<WriteDiaryScreen />} />
-        <Route path="/generate/:jobId" element={<GeneratingScreen />} />
-        <Route path="/result/:artifactId" element={<ResultScreen />} />
-        <Route path="/regenerate/:artifactId" element={<RegenerateScreen />} />
-        <Route path="/share/:artifactId" element={<ShareScreen />} />
+
+        {/* Protected Routes */}
+        <Route path="/home" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><UserProfileScreen /></ProtectedRoute>} />
+        <Route path="/character-create" element={<ProtectedRoute><CharacterCreationScreen /></ProtectedRoute>} />
+        <Route path="/write" element={<ProtectedRoute><WriteDiaryScreen /></ProtectedRoute>} />
+        <Route path="/generate/:jobId" element={<ProtectedRoute><GeneratingScreen /></ProtectedRoute>} />
+        <Route path="/result/:artifactId" element={<ProtectedRoute><ResultScreen /></ProtectedRoute>} />
+        <Route path="/regenerate/:artifactId" element={<ProtectedRoute><RegenerateScreen /></ProtectedRoute>} />
+        <Route path="/share/:artifactId" element={<ProtectedRoute><ShareScreen /></ProtectedRoute>} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

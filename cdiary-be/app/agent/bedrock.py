@@ -108,20 +108,29 @@ def get_embedding(text: str) -> List[float]:
     """
     Generate vector embeddings using Amazon Titan Text Embeddings v2
     """
-    br = _bedrock_runtime()
-    body = {
-        "inputText": text,
-        "dimensions": 256,
-        "normalize": True
-    }
-    resp = br.invoke_model(
-        modelId="amazon.titan-embed-text-v2:0",
-        body=json.dumps(body),
-        accept="application/json",
-        contentType="application/json"
-    )
-    result = json.loads(resp["body"].read())
-    return result.get("embedding", [])
+    try:
+        br = _bedrock_runtime()
+        body = {
+            "inputText": text,
+            "dimensions": 256,
+            "normalize": True
+        }
+        print(f"DEBUG: Invoking Titan Embeddings with text: {text[:50]}...", flush=True)
+        resp = br.invoke_model(
+            modelId="amazon.titan-embed-text-v2:0",
+            body=json.dumps(body),
+            accept="application/json",
+            contentType="application/json"
+        )
+        result = json.loads(resp["body"].read())
+        emb = result.get("embedding", [])
+        print(f"DEBUG: Successfully generated embedding of length {len(emb)}", flush=True)
+        return emb
+    except Exception as e:
+        print(f"DEBUG: get_embedding FAILED: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 def generate_storyboard(diary_text: str, style: str = "comic") -> List[Dict[str, str]]:

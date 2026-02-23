@@ -50,7 +50,8 @@ export const HomeScreen: React.FC = () => {
   const loadArtifacts = useCallback(async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const data = await api.getArtifacts(20, searchQuery);
+      const userId = localStorage.getItem('userId');
+      const data = await api.getArtifacts(20, searchQuery, userId || undefined);
       setArtifacts(data.items);
     } catch (error) {
       console.error(error);
@@ -58,6 +59,7 @@ export const HomeScreen: React.FC = () => {
       if (showLoading) setLoading(false);
     }
   }, [searchQuery]);
+
 
 
   const handleDelete = useCallback(async (e: React.MouseEvent, artifactId: string) => {

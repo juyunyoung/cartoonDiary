@@ -40,10 +40,20 @@ def cosine_similarity(v1: List[float], v2: List[float]) -> float:
     return dot / (n1 * n2)
 
 @router.get("/", response_model=Dict[str, List[Any]])
-async def list_artifacts(limit: int = 20, query: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def list_artifacts(
+    limit: int = 20, 
+    query: Optional[str] = None, 
+    user_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
     # Simple list of recent diaries
     stmt = select(Diary).order_by(Diary.created_at.desc())
+    
+    if user_id:
+        stmt = stmt.where(Diary.user_id == user_id)
+        
     if not query:
+
         stmt = stmt.limit(limit)
         
     result = await db.execute(stmt)

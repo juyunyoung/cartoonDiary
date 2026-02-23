@@ -174,6 +174,7 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
                     user_id=uuid.UUID(user_id),
                     chunk_index=img.cut_index,
                     content=get_cut_text(img.cut_index),
+                    embedding_status='pending',
                     metadata_={
                         "image_s3_key": s3_key,
                         "image_url": img.image_url,
@@ -183,6 +184,11 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
                 db.add(chunk)
             
             await db.commit()
+
+            # Trigger background task for embeddings
+            from app.routers.diary import process_pending_embeddings
+            import asyncio
+            asyncio.create_task(process_pending_embeddings(user_id))
 
             # 6. Compose Strip
             if panel_images_bytes:

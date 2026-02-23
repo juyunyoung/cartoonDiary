@@ -53,17 +53,17 @@ export const api = {
     return response.json();
   },
 
-  async saveProfileImage(userId: string, imageData: string): Promise<{ s3_key: string, image_url: string }> {
+  async saveProfileImage(userId: string, imageData: string, profilePrompt?: string): Promise<{ s3_key: string, image_url: string }> {
     const response = await fetch(`${API_BASE_URL}/image/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, imageData }),
+      body: JSON.stringify({ userId, imageData, profilePrompt }),
     });
     if (!response.ok) throw new Error('Failed to save profile image');
     return response.json();
   },
 
-  async getUser(userId: string): Promise<{ id: string, username: string, profile_image_url?: string }> {
+  async getUser(userId: string): Promise<{ id: string, username: string, email?: string, profile_image_url?: string, profile_prompt?: string }> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}`);
     if (!response.ok) throw new Error('Failed to get user');
     return response.json();
@@ -75,12 +75,16 @@ export const api = {
     return response.json();
   },
 
-  async getArtifacts(limit: number = 7, query?: string): Promise<{ items: ArtifactSummary[] }> {
+  async getArtifacts(limit: number = 20, query?: string, userId?: string): Promise<{ items: ArtifactSummary[] }> {
     const url = new URL(`${API_BASE_URL}/artifacts`);
     url.searchParams.append('limit', limit.toString());
     if (query) {
       url.searchParams.append('query', query);
     }
+    if (userId) {
+      url.searchParams.append('user_id', userId);
+    }
+
     const response = await fetch(url.toString());
     if (!response.ok) throw new Error('Failed to list artifacts');
     return response.json();

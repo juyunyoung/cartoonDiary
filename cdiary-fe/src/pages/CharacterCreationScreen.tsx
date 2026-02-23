@@ -53,7 +53,7 @@ export const CharacterCreationScreen: React.FC = () => {
       localStorage.setItem('userId', userId);
 
       // 2. Save profile image to S3 via backend
-      const { s3_key, image_url } = await api.saveProfileImage(userId, generatedImage);
+      const { s3_key, image_url } = await api.saveProfileImage(userId, generatedImage, constructPrompt());
 
       // 3. Save character metadata to LocalStorage (with S3 URL this time)
       const characterData = {
@@ -67,7 +67,7 @@ export const CharacterCreationScreen: React.FC = () => {
       localStorage.setItem('user_character', JSON.stringify(characterData));
 
       // 4. Navigate
-      navigate('/write');
+      navigate('/profile');
     } catch (error) {
       console.error("Failed to save profile:", error);
       alert("Failed to save character. Please try again.");

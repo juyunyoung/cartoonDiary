@@ -112,3 +112,17 @@ class DiaryChunk(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     diary = relationship("Diary", back_populates="chunks")
+    embeddings = relationship("DiaryChunkEmbedding", back_populates="chunk", cascade="all, delete-orphan")
+
+class DiaryChunkEmbedding(Base):
+    __tablename__ = "diary_chunk_embeddings"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    chunk_id = Column(GUID(), ForeignKey("diary_chunks.id", ondelete="CASCADE"), nullable=False)
+    
+    # Large embedding vector stored as JSON or ARRAY for flexibility
+    embedding_vector = Column(JSON, nullable=False) 
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    chunk = relationship("DiaryChunk", back_populates="embeddings")

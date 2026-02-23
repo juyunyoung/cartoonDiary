@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel
+from typing import Optional
 import uuid
 import base64
 import random
@@ -33,6 +34,7 @@ async def generate_image(request: ImageGenerationRequest):
 class ImageSaveRequest(BaseModel):
     userId: str
     imageData: str
+    profilePrompt: Optional[str] = None
 
 @router.post("/save")
 async def save_image(request: ImageSaveRequest, db: AsyncSession = Depends(get_db)):
@@ -56,6 +58,8 @@ async def save_image(request: ImageSaveRequest, db: AsyncSession = Depends(get_d
             
             if user:
                 user.profile_image_s3_key = s3_key
+                if request.profilePrompt:
+                    user.profile_prompt = request.profilePrompt
                 await db.commit()
             else:
                  print(f"User {request.userId} not found in DB, skipping update.")

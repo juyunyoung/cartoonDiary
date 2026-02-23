@@ -17,7 +17,7 @@ from app.agent.bedrock import make_access_url, S3_BUCKET
 router = APIRouter()
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
+    username: Optional[str] = None
     profile_image_s3_key: Optional[str] = None
     profile_prompt: Optional[str] = None
 
@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     username: str
     email: Optional[str] = None
     profile_image_url: Optional[str] = None
+    profile_prompt: Optional[str] = None
     status: str
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -46,6 +47,7 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
         "username": user.username,
         "email": user.email,
         "profile_image_url": url,
+        "profile_prompt": user.profile_prompt,
         "status": user.status
     }
 
@@ -59,8 +61,8 @@ async def update_user(user_id: str, user_data: UserUpdate, db: AsyncSession = De
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    if user_data.name is not None:
-        user.name = user_data.name
+    if user_data.username is not None:
+        user.username = user_data.username
     if user_data.profile_image_s3_key is not None:
         user.profile_image_s3_key = user_data.profile_image_s3_key
     if user_data.profile_prompt is not None:

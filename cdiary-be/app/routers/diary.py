@@ -42,7 +42,50 @@ class DiaryResponse(BaseModel):
 
 # --- Helper Functions ---
 
+async def process_pending_embeddings(user_id: str):
+    """
+    Background task to process pending diary chunk embeddings
+    """
+    from app.agent.bedrock import get_embedding
+    from app.models.models import DiaryChunk, DiaryChunkEmbedding
+    
+    async with AsyncSessionLocal() as db:
+        # Fetch chunks with pending status for this user
+        uid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        stmt = select(DiaryChunk).where(
+            (DiaryChunk.user_id == uid) & 
+            (DiaryChunk.embedding_status == 'pending')
+        )
+        result = await db.execute(stmt)
+        chunks = result.scalars().all()
+        
+        if not chunks:
+            return
 
+        for chunk in chunks:
+            try:
+                # Generate embedding
+                embedding_vector = get_embedding(chunk.content)
+                
+                if embedding_vector:
+                    # Save to DiaryChunkEmbedding
+                    db_embedding = DiaryChunkEmbedding(
+                        chunk_id=chunk.id,
+                        embedding_vector=embedding_vector
+                    )
+                    db.add(db_embedding)
+                    
+                    # Update chunk status
+                    chunk.embedding_status = 'completed'
+                    chunk.last_embedded_at = datetime.datetime.now(datetime.timezone.utc)
+                else:
+                    chunk.embedding_status = 'failed'
+                    
+            except Exception as e:
+                print(f"DEBUG: Error processing embedding for chunk {chunk.id}: {e}", flush=True)
+                chunk.embedding_status = 'failed'
+                
+        await db.commit()
 
 # --- Endpoints ---
 
@@ -78,7 +121,11 @@ async def generate_diary_comic(
     return {"jobId": job_id}
 
 @router.post("/", response_model=DiaryResponse)
-async def create_diary(diary_in: DiaryCreate, db: AsyncSession = Depends(get_db)):
+async def create_diary(
+    diary_in: DiaryCreate, 
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
     # Check if duplicate for date
     stmt = select(Diary).where((Diary.user_id == diary_in.user_id) & (Diary.diary_date == diary_in.diary_date))
     result = await db.execute(stmt)
@@ -94,8 +141,24 @@ async def create_diary(diary_in: DiaryCreate, db: AsyncSession = Depends(get_db)
         image_s3_key=diary_in.image_s3_key
     )
     db.add(db_diary)
+    await db.flush() # Flush to get db_diary.id
+    
+    # Simple chunking logic: For now, create one chunk for the entire content
+    # In a more advanced version, we would split by sentence or paragraph.
+    db_chunk = DiaryChunk(
+        diary_id=db_diary.id,
+        user_id=uuid.UUID(diary_in.user_id),
+        chunk_index=0,
+        content=diary_in.content,
+        embedding_status='pending'
+    )
+    db.add(db_chunk)
+    
     await db.commit()
     await db.refresh(db_diary)
+    
+    # Trigger background task for embeddings
+    background_tasks.add_task(process_pending_embeddings, diary_in.user_id)
     
     return {
         "id": str(db_diary.id), # Convert UUID

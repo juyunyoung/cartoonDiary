@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
-import { User, LogOut, Trash2 } from 'lucide-react';
+import { User, LogOut, Trash2, RefreshCw, Loader2, Camera } from 'lucide-react';
 
 export const UserProfileScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ export const UserProfileScreen: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     // password field removed for simplicity unless required
@@ -39,13 +40,27 @@ export const UserProfileScreen: React.FC = () => {
   const handleUpdate = async () => {
     if (!userId) return;
     try {
-      await api.updateUser(userId, { name: formData.username });
+      await api.updateUser(userId, { username: formData.username });
       setIsEditing(false);
       loadUser();
-      alert('Profile updated successfully!');
     } catch (error) {
       console.error("Update failed", error);
       alert('Failed to update profile.');
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!userId || !user?.profile_prompt) return;
+    setIsRegenerating(true);
+    try {
+      const { image_data } = await api.generateImage(user.profile_prompt);
+      await api.saveProfileImage(userId, image_data, user.profile_prompt);
+      await loadUser();
+    } catch (error) {
+      console.error("Regeneration failed", error);
+      alert('Failed to regenerate character.');
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -79,19 +94,73 @@ export const UserProfileScreen: React.FC = () => {
 
   return (
     <AppShell>
-      <TopBar title="User Profile" showBack />
+      <TopBar title="User Profile" showBack onBack={() => navigate('/home')} />
       <div className="p-6 flex flex-col items-center">
         {/* Profile Image */}
-        <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 mb-6 border-4 border-white shadow-lg relative group">
-          {user?.profile_image_url ? (
-            <img src={user.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              <User size={48} />
-            </div>
+        <div className="relative group mb-6">
+          <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 border-4 border-white shadow-lg relative">
+            {user?.profile_image_url ? (
+              <img src={user.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <User size={48} />
+              </div>
+            )}
+
+            {/* Regeneration Overlay (Visible in Edit Mode) */}
+            {isEditing && user?.profile_prompt && (
+              <button
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
+                className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-100"
+                title="Regenerate Character"
+              >
+                {isRegenerating ? (
+                  <Loader2 className="text-white w-8 h-8 animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="text-white w-8 h-8 mb-1" />
+                    <span className="text-white text-[10px] font-bold">REGENERATE</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Prompt to edit character attributes */}
+          {isEditing && (
+            <button
+              onClick={() => navigate('/character-create')}
+              className="absolute -right-2 -bottom-2 p-2 bg-white dark:bg-gray-700 rounded-full shadow-md border border-gray-100 dark:border-gray-600 text-primary hover:text-primary/80 transition-transform active:scale-90"
+              title="Change Character Settings"
+            >
+              <RefreshCw size={16} />
+            </button>
           )}
-          {/* Optional: Add image upload overlay here if needed */}
         </div>
+
+        {isEditing && user?.profile_prompt && (
+          <div className="flex flex-col items-center gap-2 mb-6">
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              className="flex items-center gap-2 px-4 py-2 bg-secondary/20 hover:bg-secondary/30 text-primary text-xs font-bold rounded-full transition-colors disabled:opacity-50"
+            >
+              {isRegenerating ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              이미지 새로 고치기 (재생성)
+            </button>
+            <button
+              onClick={() => navigate('/character-create')}
+              className="text-[10px] text-gray-400 hover:text-primary underline"
+            >
+              캐릭터 설정(성별, 머리 등) 변경하기
+            </button>
+          </div>
+        )}
 
         {/* User Info Form */}
         <div className="w-full max-w-sm space-y-4">
