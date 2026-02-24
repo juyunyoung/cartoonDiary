@@ -76,17 +76,29 @@ export const api = {
   },
 
   async getArtifacts(limit: number = 20, query?: string, userId?: string): Promise<{ items: ArtifactSummary[] }> {
-    const url = new URL(`${API_BASE_URL}/artifacts`);
-    url.searchParams.append('limit', limit.toString());
-    if (query) {
-      url.searchParams.append('query', query);
-    }
-    if (userId) {
-      url.searchParams.append('user_id', userId);
+    if (!userId) {
+      // Fallback or error if userId is missing, but usually HomeScreen has it
+      return { items: [] };
     }
 
-    const response = await fetch(url.toString());
-    if (!response.ok) throw new Error('Failed to list artifacts');
+    let url: string;
+    if (query) {
+      url = `${API_BASE_URL}/diary/search?user_id=${userId}&query=${encodeURIComponent(query)}`;
+    } else {
+      url = `${API_BASE_URL}/diary/user/${userId}`;
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch diaries');
+
+    // The backend now returns a List[DiarySummaryResponse] which matches ArtifactSummary[]
+    const items = await response.json();
+    return { items: items.slice(0, limit) };
+  },
+
+  async searchDiaries(userId: string, query: string): Promise<ArtifactSummary[]> {
+    const response = await fetch(`${API_BASE_URL}/diary/search?user_id=${userId}&query=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error('Failed to search diaries');
     return response.json();
   },
 

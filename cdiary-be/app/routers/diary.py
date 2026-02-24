@@ -8,8 +8,11 @@ import datetime
 import uuid
 import io
 from PIL import Image
-
+from app.agent.bedrock import get_embedding
+from app.models.models import DiaryChunk, DiaryChunkEmbedding
+import numpy as np
 from app.database import get_db, AsyncSessionLocal
+from app.agent.bedrock import make_access_url, S3_BUCKET
 from app.models.models import User, Diary, DiaryChunk
 from app.routers.jobs import create_job
 
@@ -19,6 +22,13 @@ from app.agent.models import DiaryEntryRequest
 router = APIRouter()
 
 # --- Models ---
+
+class DiarySummaryResponse(BaseModel):
+    artifactId: str
+    thumbnailUrl: str
+    date: str
+    summary: str
+    stylePreset: str
 
 class DiaryCreate(BaseModel):
     user_id: str
@@ -168,43 +178,121 @@ async def create_diary(
         "created_at": db_diary.created_at
     }
 
-@router.get("/user/{user_id}", response_model=List[DiaryResponse])
+@router.get("/user/{user_id}", response_model=List[DiarySummaryResponse])
 async def get_user_diaries(user_id: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(Diary).where(Diary.user_id == user_id).order_by(Diary.diary_date.desc())
+    stmt = select(Diary).where(Diary.user_id == uuid.UUID(user_id)).order_by(Diary.diary_date.desc())
     result = await db.execute(stmt)
     diaries = result.scalars().all()
     
-    return [
-        {
-            "id": str(d.id),
-            "diary_date": d.diary_date,
-            "content": d.content,
-            "image_s3_key": d.image_s3_key,
-            "created_at": d.created_at
-        }
-        for d in diaries
-    ]
+    items = []
+    for d in diaries:
+        url = ""
+        if d.image_s3_key:
+            url = make_access_url(S3_BUCKET, d.image_s3_key)
+            
+        items.append({
+            "artifactId": str(d.id),
+            "thumbnailUrl": url,
+            "date": str(d.diary_date),
+            "summary": d.content[:50] + "..." if len(d.content) > 50 else d.content,
+            "stylePreset": d.style_preset or "comic"
+        })
+    return items
 
-@router.get("/search", response_model=List[DiaryResponse])
+@router.get("/search", response_model=List[DiarySummaryResponse])
 async def search_diaries(user_id: str, query: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(Diary).where(
-        (Diary.user_id == user_id) & 
-        (Diary.content.contains(query))
-    ).order_by(Diary.diary_date.desc())
-    
-    result = await db.execute(stmt)
-    diaries = result.scalars().all()
-    
-    return [
-        {
-            "id": str(d.id),
-            "diary_date": d.diary_date,
-            "content": d.content,
-            "image_s3_key": d.image_s3_key,
-            "created_at": d.created_at
-        }
-        for d in diaries
-    ]
+    from app.agent.bedrock import get_embedding
+    from app.models.models import DiaryChunk, DiaryChunkEmbedding
+    import numpy as np
+
+    print(f"DEBUG: Semantic search for query '{query}' (user {user_id})", flush=True)
+
+    try:
+        # 1. Generate query embedding
+        query_embedding = get_embedding(query)
+        if not query_embedding:
+            # Fallback to simple matching if embedding fails
+            print("WARNING: get_embedding failed, falling back to simple search", flush=True)
+            stmt = select(Diary).where((Diary.user_id == uuid.UUID(user_id)) & (Diary.content.contains(query)))
+            result = await db.execute(stmt)
+            diaries = result.scalars().all()
+            return [
+                {
+                    "artifactId": str(d.id),
+                    "thumbnailUrl": make_access_url(S3_BUCKET, d.image_s3_key) if d.image_s3_key else "",
+                    "date": str(d.diary_date),
+                    "summary": d.content[:50] + "..." if len(d.content) > 50 else d.content,
+                    "stylePreset": d.style_preset or "comic"
+                }
+                for d in diaries
+            ]
+
+        # 2. Fetch all chunks and embeddings for this user
+        stmt = select(DiaryChunk, DiaryChunkEmbedding, Diary).join(
+            DiaryChunkEmbedding, DiaryChunk.id == DiaryChunkEmbedding.chunk_id
+        ).join(
+            Diary, DiaryChunk.diary_id == Diary.id
+        ).where(DiaryChunk.user_id == uuid.UUID(user_id))
+        
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        if not rows:
+            return []
+
+        # 3. Calculate similarity scores
+        def cosine_similarity(v1, v2):
+            return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+        diary_results = {} # diary_id -> {score, diary}
+
+        query_vec = np.array(query_embedding)
+        for chunk, emb, diary in rows:
+            chunk_vec = np.array(emb.embedding_vector)
+            similarity = cosine_similarity(query_vec, chunk_vec)
+            
+            d_id = str(diary.id)
+            if d_id not in diary_results or similarity > diary_results[d_id]["score"]:
+                diary_results[d_id] = {
+                    "score": similarity,
+                    "diary": diary
+                }
+
+        # 4. Filter and Sort
+        threshold = 0.3
+        sorted_results = sorted(
+            [v for v in diary_results.values() if v["score"] > threshold],
+            key=lambda x: x["score"],
+            reverse=True
+        )
+
+        return [
+            {
+                "artifactId": str(v["diary"].id),
+                "thumbnailUrl": make_access_url(S3_BUCKET, v["diary"].image_s3_key) if v["diary"].image_s3_key else "",
+                "date": str(v["diary"].diary_date),
+                "summary": v["diary"].content[:50] + "..." if len(v["diary"].content) > 50 else v["diary"].content,
+                "stylePreset": v["diary"].style_preset or "comic"
+            }
+            for v in sorted_results
+        ]
+        
+    except Exception as e:
+        print(f"ERROR in semantic search: {e}", flush=True)
+        # Fallback to simple matching on error
+        stmt = select(Diary).where((Diary.user_id == uuid.UUID(user_id)) & (Diary.content.contains(query)))
+        result = await db.execute(stmt)
+        diaries = result.scalars().all()
+        return [
+            {
+                "artifactId": str(d.id),
+                "thumbnailUrl": make_access_url(S3_BUCKET, d.image_s3_key) if d.image_s3_key else "",
+                "date": str(d.diary_date),
+                "summary": d.content[:50] + "..." if len(d.content) > 50 else d.content,
+                "stylePreset": d.style_preset or "comic"
+            }
+            for d in diaries
+        ]
 
 @router.get("/{diary_id}", response_model=DiaryResponse)
 async def get_diary(diary_id: str, db: AsyncSession = Depends(get_db)):
