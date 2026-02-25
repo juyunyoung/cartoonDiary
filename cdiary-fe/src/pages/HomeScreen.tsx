@@ -142,7 +142,13 @@ export const HomeScreen: React.FC = () => {
           <div className="text-center py-10 text-gray-500">Loading diaries...</div>
         ) : artifacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-            {userProfile?.profile_image_url ? (
+            {searchQuery ? (
+              <div className="text-center">
+                <Search className="w-12 h-12 text-gray-300 mb-3 mx-auto" />
+                <p className="text-lg">검색 결과가 없습니다.</p>
+                <p className="text-sm text-gray-400 mt-1">다른 키워드로 검색해 보세요.</p>
+              </div>
+            ) : userProfile?.profile_image_url ? (
               <>
                 <img
                   src={userProfile.profile_image_url}
