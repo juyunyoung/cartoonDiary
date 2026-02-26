@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
+import { useAlert } from '../context/AlertContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const SignUpScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +15,8 @@ export const SignUpScreen: React.FC = () => {
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const { showAlert } = useAlert();
+  const { t } = useLanguage();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -24,7 +28,7 @@ export const SignUpScreen: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('password_mismatch'));
       return;
     }
 
@@ -38,22 +42,22 @@ export const SignUpScreen: React.FC = () => {
       localStorage.setItem('token', response.access_token);
       localStorage.setItem('userId', response.user_id);
 
-      alert('Registration successful! Welcome.');
+      showAlert(t('register_success'));
       navigate('/character-create');
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message || t('registration_failed'));
     }
   };
 
   return (
     <AppShell>
-      <TopBar title="Sign Up" showBack={true} />
+      <TopBar title={t('sign_up_title')} showBack={true} />
       <div className="p-6 flex flex-col justify-center min-h-[70vh]">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Create Account</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">{t('create_account')}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
+            <label className="block text-sm font-medium text-gray-700">{t('username')}</label>
             <input
               type="text"
               name="username"
@@ -65,7 +69,7 @@ export const SignUpScreen: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <label className="block text-sm font-medium text-gray-700">{t('email')}</label>
             <input
               type="email"
               name="email"
@@ -77,7 +81,7 @@ export const SignUpScreen: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <label className="block text-sm font-medium text-gray-700">{t('password')}</label>
             <input
               type="password"
               name="password"
@@ -89,7 +93,7 @@ export const SignUpScreen: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <label className="block text-sm font-medium text-gray-700">{t('confirm_password')}</label>
             <input
               type="password"
               name="confirmPassword"
@@ -106,7 +110,7 @@ export const SignUpScreen: React.FC = () => {
             type="submit"
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-4"
           >
-            Sign Up
+            {t('sign_up_title')}
           </button>
         </form>
       </div>

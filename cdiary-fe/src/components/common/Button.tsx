@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost';
@@ -26,7 +27,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? "Loading..." : children}
+      {isLoading ? useLanguage().t('loading') : children}
     </button>
   );
 };

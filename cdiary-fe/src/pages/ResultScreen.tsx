@@ -4,11 +4,15 @@ import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { Button } from '../components/common/Button';
 import { api } from '../api/client';
+import { useAlert } from '../context/AlertContext';
+import { useLanguage } from '../context/LanguageContext';
 import { ArtifactResponse } from '../types';
 
 export const ResultScreen: React.FC = () => {
   const { artifactId } = useParams<{ artifactId: string }>();
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
+  const { t } = useLanguage();
   const [artifact, setArtifact] = useState<ArtifactResponse | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -32,18 +36,18 @@ export const ResultScreen: React.FC = () => {
       });
       navigate(`/generate/${jobId}`);
     } catch (error) {
-      alert('Failed to start regeneration');
+      showAlert(t('regen_start_failed'));
       console.error(error);
     } finally {
       setIsRegenerating(false);
     }
   };
 
-  if (!artifact) return <div>Loading...</div>;
+  if (!artifact) return <div>{t('loading')}</div>;
 
   return (
     <AppShell>
-      <TopBar title="Your Comic" showBack onBack={() => navigate('/')} />
+      <TopBar title={t('your_comic')} showBack onBack={() => navigate('/')} />
 
       <main className="flex-1 p-4 overflow-y-auto">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-4">
@@ -56,7 +60,7 @@ export const ResultScreen: React.FC = () => {
         {/* Diary Content */}
         {artifact.diaryText && (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 mb-4">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">오늘의 일기</h3>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">{t('today_diary')}</h3>
             <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">
               {artifact.diaryText}
             </p>
@@ -71,10 +75,10 @@ export const ResultScreen: React.FC = () => {
           onClick={handleRegenerate}
           isLoading={isRegenerating}
         >
-          Regenerate
+          {t('regenerate')}
         </Button>
-        <Button className="flex-1" onClick={() => alert('Saved!')}>
-          Save & Share
+        <Button className="flex-1" onClick={() => showAlert(t('saved_at'))}>
+          {t('save_share')}
         </Button>
       </div>
     </AppShell>

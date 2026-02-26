@@ -4,6 +4,8 @@ import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
 import { User, LogOut, Trash2, RefreshCw, Loader2, Camera } from 'lucide-react';
+import { useAlert } from '../context/AlertContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const UserProfileScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +14,8 @@ export const UserProfileScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const { showAlert, showConfirm } = useAlert();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     username: '',
     // password field removed for simplicity unless required
@@ -45,7 +49,7 @@ export const UserProfileScreen: React.FC = () => {
       loadUser();
     } catch (error) {
       console.error("Update failed", error);
-      alert('Failed to update profile.');
+      showAlert(t('update_failed'));
     }
   };
 
@@ -58,7 +62,7 @@ export const UserProfileScreen: React.FC = () => {
       await loadUser();
     } catch (error) {
       console.error("Regeneration failed", error);
-      alert('Failed to regenerate character.');
+      showAlert(t('regen_failed'));
     } finally {
       setIsRegenerating(false);
     }
@@ -66,14 +70,15 @@ export const UserProfileScreen: React.FC = () => {
 
   const handleWithdraw = async () => {
     if (!userId) return;
-    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+    const confirmed = await showConfirm(t('withdraw_confirm'));
+    if (confirmed) {
       try {
         await api.deleteUser(userId);
         localStorage.clear();
         navigate('/');
       } catch (error) {
         console.error("Delete failed", error);
-        alert('Failed to delete account.');
+        showAlert(t('withdraw_failed'));
       }
     }
   };
@@ -86,15 +91,15 @@ export const UserProfileScreen: React.FC = () => {
   if (loading) {
     return (
       <AppShell>
-        <TopBar title="Profile" showBack />
-        <div className="flex justify-center items-center h-full p-10">Loading...</div>
+        <TopBar title={t('profile_title')} showBack />
+        <div className="flex justify-center items-center h-full p-10">{t('loading')}</div>
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      <TopBar title="User Profile" showBack onBack={() => navigate('/home')} />
+      <TopBar title={t('profile_title')} showBack onBack={() => navigate('/home')} />
       <div className="p-6 flex flex-col items-center">
         {/* Profile Image */}
         <div className="relative group mb-6">
@@ -151,13 +156,13 @@ export const UserProfileScreen: React.FC = () => {
               ) : (
                 <RefreshCw size={14} />
               )}
-              이미지 새로 고치기 (재생성)
+              {t('regen_image')}
             </button>
             <button
               onClick={() => navigate('/character-create')}
               className="text-[10px] text-gray-400 hover:text-primary underline"
             >
-              캐릭터 설정(성별, 머리 등) 변경하기
+              {t('change_char_settings')}
             </button>
           </div>
         )}
@@ -165,7 +170,7 @@ export const UserProfileScreen: React.FC = () => {
         {/* User Info Form */}
         <div className="w-full max-w-sm space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('username')}</label>
             {isEditing ? (
               <input
                 type="text"
@@ -181,7 +186,7 @@ export const UserProfileScreen: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
             <div className="p-3 bg-gray-50 rounded-md border border-gray-100 text-gray-500">
               {user?.email || 'No email provided'}
             </div>
@@ -194,13 +199,13 @@ export const UserProfileScreen: React.FC = () => {
                   onClick={() => setIsEditing(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleUpdate}
                   className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90"
                 >
-                  Save
+                  {t('save')}
                 </button>
               </div>
             ) : (
@@ -208,7 +213,7 @@ export const UserProfileScreen: React.FC = () => {
                 onClick={() => setIsEditing(true)}
                 className="w-full px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 shadow-sm transition-transform active:scale-95"
               >
-                Edit Profile
+                {t('edit_profile')}
               </button>
             )}
 
@@ -217,7 +222,7 @@ export const UserProfileScreen: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center justify-center gap-2"
             >
               <LogOut size={18} />
-              Log Out
+              {t('logout')}
             </button>
 
             <div className="mt-8 pt-6 border-t border-gray-200">
@@ -232,6 +237,6 @@ export const UserProfileScreen: React.FC = () => {
           </div>
         </div>
       </div>
-    </AppShell>
+    </AppShell >
   );
 };

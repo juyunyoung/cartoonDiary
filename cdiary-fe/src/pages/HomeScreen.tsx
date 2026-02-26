@@ -5,6 +5,8 @@ import { Plus, User as UserIcon, Search, X } from 'lucide-react';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
+import { useAlert } from '../context/AlertContext';
+import { useLanguage } from '../context/LanguageContext';
 
 import { ArtifactSummary } from '../types';
 import { DiaryList } from '../components/home/DiaryList';
@@ -18,6 +20,8 @@ export const HomeScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<{ profile_image_url?: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const { showAlert, showConfirm } = useAlert();
+  const { language, setLanguage, t } = useLanguage();
 
 
 
@@ -64,21 +68,40 @@ export const HomeScreen: React.FC = () => {
 
   const handleDelete = useCallback(async (e: React.MouseEvent, artifactId: string) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this diary?')) {
+    const confirmed = await showConfirm(t('delete_confirm'));
+    if (confirmed) {
       try {
         await api.deleteArtifact(artifactId);
         setArtifacts(prev => prev.filter(a => a.artifactId !== artifactId));
       } catch (error) {
         console.error("Failed to delete artifact", error);
-        alert("Failed to delete diary.");
+        showAlert(t('delete_failed'));
       }
     }
-  }, []);
+  }, [showConfirm, showAlert]);
 
   return (
     <AppShell>
       <TopBar
-        title="Cartoon Diary"
+        title={t('app_title')}
+        leftAction={
+          <div className="flex bg-secondary/20 rounded-full p-1">
+            <button
+              onClick={() => setLanguage('ko')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${language === 'ko' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-primary'
+                }`}
+            >
+              KO
+            </button>
+            <button
+              onClick={() => setLanguage('en')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${language === 'en' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-primary'
+                }`}
+            >
+              EN
+            </button>
+          </div>
+        }
         rightAction={
           <div className="flex items-center gap-1">
             <button
@@ -87,21 +110,21 @@ export const HomeScreen: React.FC = () => {
                 if (isSearching) setSearchQuery('');
               }}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              title="Search Diaries"
+              title={t('search_diaries')}
             >
               <Search className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigate('/profile')}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              title="Edit Profile"
+              title={t('edit_profile')}
             >
               <UserIcon className="w-5 h-5" />
             </button>
             <button
               onClick={() => navigate('/write')}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition-colors"
-              title="New Diary"
+              title={t('new_diary')}
             >
               <Plus className="w-6 h-6" />
             </button>
@@ -119,7 +142,7 @@ export const HomeScreen: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="일기 내용 검색..."
+              placeholder={t('search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-8 py-2 bg-gray-100 dark:bg-gray-700 border-transparent rounded-full text-sm focus:border-primary focus:ring-1 focus:ring-primary dark:text-white"
@@ -139,14 +162,14 @@ export const HomeScreen: React.FC = () => {
 
       <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
-          <div className="text-center py-10 text-gray-500">Loading diaries...</div>
+          <div className="text-center py-10 text-gray-500">{t('loading_diaries')}</div>
         ) : artifacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             {searchQuery ? (
               <div className="text-center">
                 <Search className="w-12 h-12 text-gray-300 mb-3 mx-auto" />
-                <p className="text-lg">검색 결과가 없습니다.</p>
-                <p className="text-sm text-gray-400 mt-1">다른 키워드로 검색해 보세요.</p>
+                <p className="text-lg">{t('search_no_results')}</p>
+                <p className="text-sm text-gray-400 mt-1">{t('search_try_other')}</p>
               </div>
             ) : userProfile?.profile_image_url ? (
               <>
@@ -155,16 +178,16 @@ export const HomeScreen: React.FC = () => {
                   alt="My Character"
                   className="w-32 h-32 rounded-full object-cover mb-4 shadow-lg border-4 border-white dark:border-gray-700"
                 />
-                <p className="mb-4">No diaries yet.</p>
+                <p className="mb-4">{t('no_diaries')}</p>
               </>
             ) : (
               <>
-                <p className="mb-4">No diaries yet.</p>
+                <p className="mb-4">{t('no_diaries')}</p>
                 <button
                   onClick={() => navigate('/character-create')}
                   className="text-primary font-medium hover:underline text-lg font-bold"
                 >
-                  첫번째로 당신의 캐릭터를 만드세요
+                  {t('create_first_char')}
                 </button>
               </>
             )}

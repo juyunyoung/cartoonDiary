@@ -5,6 +5,8 @@ import { TopBar } from '../components/common/TopBar';
 import { Button } from '../components/common/Button';
 import { StylePreset } from '../types';
 import { api } from '../api/client';
+import { useAlert } from '../context/AlertContext';
+import { useLanguage } from '../context/LanguageContext';
 
 import Surprised from '../assets/moods/surprised.png';
 import VeryHappy from '../assets/moods/very_happy.png';
@@ -22,6 +24,8 @@ export const WriteDiaryScreen: React.FC = () => {
   const [text, setText] = useState('');
   const [style, setStyle] = useState<StylePreset>(StylePreset.CUTE);
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useAlert();
+  const { t } = useLanguage();
 
   const moods = [
     { id: 'surprised', img: Surprised, label: 'Surprised' },
@@ -51,7 +55,7 @@ export const WriteDiaryScreen: React.FC = () => {
       });
       navigate(`/generate/${jobId}`);
     } catch (error) {
-      alert('Failed to start generation');
+      showAlert(t('gen_start_failed'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -60,10 +64,10 @@ export const WriteDiaryScreen: React.FC = () => {
 
   return (
     <AppShell>
-      <TopBar title="New Diary" showBack />
+      <TopBar title={t('new_diary')} showBack />
 
       <main className="flex-1 p-4 flex flex-col">
-        <label className="block text-sm font-medium mb-2">How was your day?</label>
+        <label className="block text-sm font-medium mb-2">{t('how_was_day')}</label>
         <div className="flex gap-4 mb-6 overflow-x-auto pb-4 pt-10 px-4">
           {moods.map((m) => (
             <button
@@ -80,18 +84,18 @@ export const WriteDiaryScreen: React.FC = () => {
           ))}
         </div>
 
-        <label className="block text-sm font-medium mb-2">Write your story</label>
+        <label className="block text-sm font-medium mb-2">{t('write_story')}</label>
         <textarea
           className="flex-1 w-full p-4 border border-secondary/50 rounded-lg resize-none bg-secondary/10 focus:ring-2 focus:ring-primary outline-none placeholder-primary/60"
-          placeholder="What happened today?"
+          placeholder={t('write_placeholder')}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
         <div className="text-right text-xs text-primary mt-2 mb-6">
-          {text.length} chars
+          {text.length} {t('chars_count')}
         </div>
 
-        <label className="block text-sm font-medium mb-2">Choose a Style</label>
+        <label className="block text-sm font-medium mb-2">{t('choose_style')}</label>
         <div className="grid grid-cols-2 gap-3 mb-6">
           {Object.values(StylePreset).map((preset) => (
             <button
@@ -102,11 +106,15 @@ export const WriteDiaryScreen: React.FC = () => {
                 : 'border-gray-200 dark:border-gray-700 hover:border-blue-200'
                 }`}
             >
-              <div className="capitalize font-bold text-sm">{preset}</div>
+              <div className="capitalize font-bold text-sm">
+                {preset === 'cute' ? t('style_cute') :
+                  preset === 'comedy' ? t('style_comedy') :
+                    preset === 'drama' ? t('style_drama') : t('style_simple')}
+              </div>
               <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                {preset === 'cute' ? 'Soft & Adorable' :
-                  preset === 'comedy' ? 'Funny & Exaggerated' :
-                    preset === 'drama' ? 'Serious & Emotional' : 'Clean & Simple'}
+                {preset === 'cute' ? t('style_cute_desc') :
+                  preset === 'comedy' ? t('style_comedy_desc') :
+                    preset === 'drama' ? t('style_drama_desc') : t('style_simple_desc')}
               </div>
             </button>
           ))}
@@ -120,7 +128,7 @@ export const WriteDiaryScreen: React.FC = () => {
           disabled={text.trim().length < 5}
           isLoading={loading}
         >
-          Generate Comic
+          {t('generate_comic')}
         </Button>
       </div>
     </AppShell>

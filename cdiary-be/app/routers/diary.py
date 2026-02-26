@@ -216,6 +216,7 @@ async def search_diaries(user_id: str, query: str, db: AsyncSession = Depends(ge
             stmt = select(Diary).where((Diary.user_id == uuid.UUID(user_id)) & (Diary.content.contains(query)))
             result = await db.execute(stmt)
             diaries = result.scalars().all()
+            print(f"DEBUG: Found {len(diaries)} diaries via simple search", flush=True) 
             return [
                 {
                     "artifactId": str(d.id),

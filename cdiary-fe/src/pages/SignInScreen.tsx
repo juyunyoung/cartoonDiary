@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { api } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 
 export const SignInScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export const SignInScreen: React.FC = () => {
     password: ''
   });
   const [error, setError] = useState('');
+  const { t } = useLanguage();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -32,19 +34,19 @@ export const SignInScreen: React.FC = () => {
 
       navigate('/home');
     } catch (err: any) {
-      setError(err.message || 'Invalid username or password.');
+      setError(err.message || t('invalid_auth'));
     }
   };
 
   return (
     <AppShell>
-      <TopBar title="Sign In" showBack={true} />
+      <TopBar title={t('sign_in_title')} showBack={true} />
       <div className="p-6 flex flex-col justify-center min-h-[60vh]">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Welcome Back</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">{t('welcome_back')}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
+            <label className="block text-sm font-medium text-gray-700">{t('username')}</label>
             <input
               type="text"
               name="username"
@@ -56,7 +58,7 @@ export const SignInScreen: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <label className="block text-sm font-medium text-gray-700">{t('password')}</label>
             <input
               type="password"
               name="password"
@@ -73,8 +75,17 @@ export const SignInScreen: React.FC = () => {
             type="submit"
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary mt-4"
           >
-            Sign In
+            {t('sign_in_title')}
           </button>
+          <p className="mt-8 text-center text-sm text-gray-500">
+            {t('no_account')}{' '}
+            <button
+              onClick={() => navigate('/signup')}
+              className="text-primary font-bold hover:underline"
+            >
+              {t('sign_up_title')}
+            </button>
+          </p>
         </form>
       </div>
     </AppShell>

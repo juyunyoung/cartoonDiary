@@ -4,9 +4,13 @@ import { AppShell } from '../components/common/AppShell';
 import { TopBar } from '../components/common/TopBar';
 import { User, Check, Loader2, RefreshCw, Save } from 'lucide-react';
 import { api } from '../api/client';
+import { useAlert } from '../context/AlertContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const CharacterCreationScreen: React.FC = () => {
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
+  const { t } = useLanguage();
 
   // State for character options
   const [gender, setGender] = useState<'female' | 'male'>('female');
@@ -38,7 +42,7 @@ export const CharacterCreationScreen: React.FC = () => {
 
     } catch (error) {
       console.error("Failed to generate character:", error);
-      alert("Failed to generate character. Please try again.");
+      showAlert(t('char_gen_failed'));
     } finally {
       setIsGenerating(false);
     }
@@ -70,7 +74,7 @@ export const CharacterCreationScreen: React.FC = () => {
       navigate('/profile');
     } catch (error) {
       console.error("Failed to save profile:", error);
-      alert("Failed to save character. Please try again.");
+      showAlert(t('char_save_failed'));
     }
   };
 
@@ -103,7 +107,7 @@ export const CharacterCreationScreen: React.FC = () => {
   return (
     <AppShell>
       <TopBar
-        title="Create Character"
+        title={t('create_char_title')}
         showBack={true}
       />
 
@@ -124,10 +128,10 @@ export const CharacterCreationScreen: React.FC = () => {
           )}
 
           <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-            {generatedImage ? "마음에 드시나요?" : "나만의 캐릭터 만들기"}
+            {generatedImage ? t('char_like_it') : t('create_first_char')}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            {generatedImage ? "캐릭터를 저장하거나 다시 생성해보세요." : "당신의 이야기 속 주인공을 설정해주세요."}
+            {generatedImage ? t('char_save_or_regen') : t('char_creation_description')}
           </p>
         </div>
 
@@ -136,15 +140,15 @@ export const CharacterCreationScreen: React.FC = () => {
           <>
             {/* Gender Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">성별</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('gender')}</label>
               <div className="grid grid-cols-2 gap-3">
                 <OptionButton
-                  label="여성 (Female)"
+                  label={t('female')}
                   selected={gender === 'female'}
                   onClick={() => setGender('female')}
                 />
                 <OptionButton
-                  label="남성 (Male)"
+                  label={t('male')}
                   selected={gender === 'male'}
                   onClick={() => setGender('male')}
                 />
@@ -153,20 +157,20 @@ export const CharacterCreationScreen: React.FC = () => {
 
             {/* Hair Length Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">머리 스타일</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('hair_style')}</label>
               <div className="grid grid-cols-3 gap-2">
                 <OptionButton
-                  label="긴 머리"
+                  label={t('hair_long')}
                   selected={hairLength === 'long'}
                   onClick={() => setHairLength('long')}
                 />
                 <OptionButton
-                  label="짧은 머리"
+                  label={t('hair_medium')}
                   selected={hairLength === 'medium'}
                   onClick={() => setHairLength('medium')}
                 />
                 <OptionButton
-                  label="쇼컷"
+                  label={t('hair_short')}
                   selected={hairLength === 'short'}
                   onClick={() => setHairLength('short')}
                 />
@@ -175,15 +179,15 @@ export const CharacterCreationScreen: React.FC = () => {
 
             {/* Other Features Selection (Glasses, Freckles) */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">기타</label>
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('others')}</label>
               <div className="grid grid-cols-2 gap-3">
                 <OptionButton
-                  label="안경"
+                  label={t('glasses')}
                   selected={hasGlasses}
                   onClick={() => setHasGlasses(!hasGlasses)}
                 />
                 <OptionButton
-                  label="주근깨"
+                  label={t('freckles')}
                   selected={hasFreckles}
                   onClick={() => setHasFreckles(!hasFreckles)}
                 />
@@ -202,14 +206,14 @@ export const CharacterCreationScreen: React.FC = () => {
                 className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-3 px-4 rounded-xl shadow-sm flex items-center justify-center gap-2"
               >
                 <RefreshCw className={`w-5 h-5 ${isGenerating ? 'animate-spin' : ''}`} />
-                다시 생성
+                {t('regen')}
               </button>
               <button
                 onClick={handleConfirmSave}
                 className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <Save className="w-5 h-5" />
-                저장하기
+                {t('save_char')}
               </button>
             </>
           ) : (
@@ -221,10 +225,10 @@ export const CharacterCreationScreen: React.FC = () => {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  생성 중...
+                  {t('generating')}
                 </>
               ) : (
-                '캐릭터 만들기'
+                t('generate_char')
               )}
             </button>
           )}
