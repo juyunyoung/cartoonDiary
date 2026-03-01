@@ -103,6 +103,7 @@ class OrchestrationState(BaseModel):
     
     # context
     profile_image: Optional[bytes] = None
+    profile_prompt: Optional[str] = None
 
 DiaryEntryRequest.model_rebuild()
 OrchestrationState.model_rebuild()

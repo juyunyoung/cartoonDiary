@@ -33,7 +33,7 @@ def plan_storyboard(state: OrchestrationState) -> OrchestrationState:
 
         Required Schema:
         {{
-        "character_appearance": "Concise description of the main character (max 10 words, e.g., 'Boy with glasses in hoodie')",
+        "character_appearance": "Concise description of the main character based on the profile provided. (max 15 words)",
         "cuts": [
             {{
             "cut_index": 1,
@@ -45,6 +45,9 @@ def plan_storyboard(state: OrchestrationState) -> OrchestrationState:
             }}
         ]
         }}
+
+        Character Profile (STRICTLY FOLLOW THIS):
+        \"\"\"{state.profile_prompt or "A person"}\"\"\"
 
         Diary:
         \"\"\"{state.diary}\"\"\"
@@ -92,7 +95,12 @@ def build_prompts(state: OrchestrationState) -> OrchestrationState:
 
             Output only the single-line prompt text in English.
             Focus on the visual scene only. Do not include dialogue, speech bubbles, or specific text/captions in the prompt.
-            Do not describe the character's appearance in detail. Just refer to them as "the character".
+            Ensure the prompt describes a single scene and only one instance of the character. 
+            Do not include phrases like "multiple views," "different poses," or "collection."
+            
+            CRITICAL: Explicitly specify the camera shot/framing (e.g., "Full body shot", "Medium shot", "Side view") to ensure a varied and dynamic composition. Avoid repeating the same framing in every panel.
+            
+            Just refer to them as "the character".
 
             """
         p = invoke_text_model(prompt, temperature=0.3).strip()
@@ -132,17 +140,23 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
             f"Style: {state.style_guide}\n"
             f"Please create an image with the following content by referring to the character in the reference image. {p.prompt} \n"
         )
-        # Cut 1: Use Profile Image as Reference if available
+        # Reference Strategy:
+        # 1. First cut uses profile image (if exists)
+        # 2. Subsequent cuts use the *previous* panel image for consistency
         if p.cut_index == 1 and state.profile_image:
              ref_bytes = state.profile_image
              
-        # Use ref_image if available (from Cut 1 or previous)
+        # Use ref_image if available
         out = invoke_image_model_to_s3(
             cut_prompt=full_prompt, 
             job_id=state.job_id, 
             cut_index=p.cut_index,
             ref_image=ref_bytes
         )
+        
+        # Update ref_bytes for the NEXT panel to be THIS panel's bytes
+        if out.img_bytes:
+            ref_bytes = out.img_bytes
         
         generated_images.append(CutImage(
             cut_index=p.cut_index, 

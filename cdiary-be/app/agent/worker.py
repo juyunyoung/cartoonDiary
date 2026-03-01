@@ -63,21 +63,24 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
 
         # 2. Fetch User Profile (if available) for consistency
         profile_ref_bytes = None
+        profile_prompt = None
         async with AsyncSessionLocal() as db:
             try:
                 stmt_user = select(User).where(User.id == user_id)
                 res_user = await db.execute(stmt_user)
                 user_obj = res_user.scalars().first()
                 
-                if user_obj and user_obj.profile_image_s3_key:
-                    import boto3
-                    s3 = boto3.client("s3")
-                    if S3_BUCKET:
-                         obj = s3.get_object(Bucket=S3_BUCKET, Key=user_obj.profile_image_s3_key)
-                         profile_ref_bytes = obj["Body"].read()
-                         print(f"Loaded profile image for reference: {len(profile_ref_bytes)} bytes")
+                if user_obj:
+                    profile_prompt = user_obj.profile_prompt
+                    if user_obj.profile_image_s3_key:
+                        import boto3
+                        s3 = boto3.client("s3")
+                        if S3_BUCKET:
+                             obj = s3.get_object(Bucket=S3_BUCKET, Key=user_obj.profile_image_s3_key)
+                             profile_ref_bytes = obj["Body"].read()
+                             print(f"Loaded profile image for reference: {len(profile_ref_bytes)} bytes")
             except Exception as e:
-                print(f"Failed to load profile image: {e}")
+                print(f"Failed to load profile image/prompt: {e}")
 
         # 3. Create Orchestration State
         trace_id = uuid.uuid4().hex
@@ -106,7 +109,8 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
             style_guide=style_guide,
             max_retries=2,
             trace_id=trace_id,
-            profile_image=profile_ref_bytes
+            profile_image=profile_ref_bytes,
+            profile_prompt=profile_prompt
         )
 
         # 4. Run the Graph (Agent)
@@ -173,7 +177,8 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest):
                     diary_id=db_diary.id,
                     user_id=uuid.UUID(user_id),
                     chunk_index=img.cut_index,
-                    content=get_cut_text(img.cut_index),
+                    #content=get_cut_text(img.cut_index),
+                    content=request.diaryText,
                     embedding_status='pending',
                     metadata_={
                         "image_s3_key": s3_key,

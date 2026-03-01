@@ -198,8 +198,9 @@ def generate_text_to_image(cut_prompt: str, seed: int = 42) -> tuple[Dict[str, A
     # 4-Panel Strip Constraints
     text = (
             "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
+            "Single character, one person only. Centered composition. "
             "No text of any kind. No letters, numbers, logos, watermarks. No speech bubbles. "
-            "Keep the main character consistent in all images (same face, same hairstyle, same outfit). "
+            "Ensure only one character is visible in the scene. No collection, no stickers. "
             f"{cut_prompt}" 
         )
     negative = (
@@ -208,7 +209,7 @@ def generate_text_to_image(cut_prompt: str, seed: int = 42) -> tuple[Dict[str, A
         "photorealistic, realistic, 3d, photo, render, "
         "blurry, low quality, noise, artifacts, "
         "harsh shadows, high contrast, neon, oversaturated, "
-        "extra characters, crowd, multiple views, split screen, character sheet, reference sheet"
+        "extra characters, crowd, multiple views, split screen, character sheet, reference sheet, stickers, collection, grid"
     )
     
     body = {
@@ -255,10 +256,20 @@ def generate_image_variation(cut_prompt: str, ref_image: bytes, seed: int = 42) 
     # Text prompt is still used in variation to guide the content
     b64_img = base64.b64encode(ref_image).decode("utf-8")
     
+    # 4-Panel Strip Constraints for Variation
+    full_text = (
+        "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
+        "The provided reference image is for character identity (facial features, hair, outfit) ONLY. "
+        "CRITICAL: The composition, camera angle, and framing MUST strictly follow the text description below, NOT the reference image. "
+        "Single character, one person only. Centered composition. "
+        "No text, no stickers, no collection, no grid. "
+        f"{cut_prompt}"
+    )
+
     body = {
         "taskType": "IMAGE_VARIATION",
         "imageVariationParams": {
-            "text": cut_prompt, 
+            "text": full_text, 
             "images": [b64_img],
             "similarityStrength": 0.3
         },            
@@ -303,11 +314,11 @@ def invoke_image_model_to_s3(
     """
     
     
-    if ref_image is None:
-        raw, img_bytes = generate_text_to_image(cut_prompt, seed=seed)
-    else:
-        raw, img_bytes = generate_image_variation(cut_prompt, ref_image, seed=seed)
-    
+    # if ref_image is None:
+    #     raw, img_bytes = generate_text_to_image(cut_prompt, seed=seed)
+    # else:
+    #     raw, img_bytes = generate_image_variation(cut_prompt, ref_image, seed=seed)
+    raw, img_bytes = generate_text_to_image(cut_prompt, seed=seed)
     # Save image (S3 or Local) using helper
     s3_key, url = save_cut_image(job_id, cut_index, img_bytes)
 
