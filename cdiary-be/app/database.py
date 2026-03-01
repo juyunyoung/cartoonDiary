@@ -25,7 +25,11 @@ if DB_PASS:
     # ssl_context.verify_mode = ssl.CERT_REQUIRED
     # connect_args = {"ssl": ssl_context}
 
-    connect_args = {"ssl": True}
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    connect_args = {"ssl": ssl_context}
+
 else:
     # Fallback to local SQLite if no password provided (Dev mode)
     # print("Warning: DB_PASSWORD not set. Using local SQLite.")
