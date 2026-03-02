@@ -25,7 +25,8 @@ async def generate_image(request: ImageGenerationRequest):
         
         return {
             "status": "success",
-            "image_data": f"data:image/png;base64,{b64_img}"
+            "image_data": f"data:image/png;base64,{b64_img}",
+            "seed": seed
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -35,6 +36,7 @@ class ImageSaveRequest(BaseModel):
     userId: str
     imageData: str
     profilePrompt: Optional[str] = None
+    seed: Optional[int] = None
 
 @router.post("/save")
 async def save_image(request: ImageSaveRequest, db: AsyncSession = Depends(get_db)):
@@ -60,6 +62,8 @@ async def save_image(request: ImageSaveRequest, db: AsyncSession = Depends(get_d
                 user.profile_image_s3_key = s3_key
                 if request.profilePrompt:
                     user.profile_prompt = request.profilePrompt
+                if request.seed is not None:
+                    user.seed = request.seed
                 await db.commit()
             else:
                  print(f"User {request.userId} not found in DB, skipping update.")

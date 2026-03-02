@@ -16,7 +16,8 @@ export const DiaryList: React.FC<DiaryListProps> = ({ artifacts, onDelete, onJob
   const completedJobIds = useRef(new Set<string>());
 
   useEffect(() => {
-    const sseUrl = `${API_BASE_URL}/jobs/stream`;
+    const token = localStorage.getItem('token');
+    const sseUrl = `${API_BASE_URL}/jobs/stream${token ? `?token=${token}` : ''}`;
     const sse = new EventSource(sseUrl);
 
     sse.onmessage = (event) => {

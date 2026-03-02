@@ -11,6 +11,7 @@ CREATE TABLE users (
     profile_image_s3_key TEXT,
     profile_prompt TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
+    seed INTEGER DEFAULT 0,
     failed_login_count INT DEFAULT 0,
     locked_until TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,
@@ -38,7 +39,6 @@ CREATE INDEX idx_diaries_user ON diaries(user_id);
 --일기 분할 저장 테이블
 CREATE TABLE diary_chunks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-
     diary_id UUID NOT NULL REFERENCES diaries(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     chunk_index INT NOT NULL,

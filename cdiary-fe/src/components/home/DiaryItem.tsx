@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { ArtifactSummary } from '../../types';
+import { Card } from '../common/Card';
 
 interface DiaryItemProps {
   art: ArtifactSummary;
@@ -16,8 +17,8 @@ export const DiaryItem: React.FC<DiaryItemProps> = React.memo(({ art, activeJob,
   }
 
   return (
-    <div
-      className="flex bg-white dark:bg-gray-800 rounded-lg shadow cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow h-24"
+    <Card
+      className="flex cursor-pointer border border-gray-100 dark:border-gray-700 h-24"
       onClick={onClick}
     >
       {/* Thumbnail */}
@@ -83,7 +84,7 @@ export const DiaryItem: React.FC<DiaryItemProps> = React.memo(({ art, activeJob,
       >
         <Trash2 size={20} />
       </button>
-    </div>
+    </Card>
   );
 }, (prev, next) => {
   return prev.art.artifactId === next.art.artifactId &&

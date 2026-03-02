@@ -18,6 +18,7 @@ from app.routers.jobs import create_job
 
 from app.agent.worker import execute_job
 from app.agent.models import DiaryEntryRequest
+from app.auth.security import get_current_user
 
 router = APIRouter()
 
@@ -103,32 +104,56 @@ async def process_pending_embeddings(user_id: str):
 async def generate_diary_comic(
     request: DiaryEntryRequest, 
     background_tasks: BackgroundTasks,
-    # user: User = Depends(get_current_user) # TODO: Add Auth
+    current_user: dict = Depends(get_current_user)
 ):
     import sys
-    print(f"DEBUG: Received generation request for user...", flush=True)
+    print(f"DEBUG: Received generation request for user {current_user['id']}", flush=True)
     
     job_id = uuid.uuid4().hex
-    create_job(job_id)
+    user_id = current_user["id"]
 
-    # Fetch a fallback user ID if needed
+    # Fetch/create Diary Record
     try:
         async with AsyncSessionLocal() as db:
-            result = await db.execute(select(User))
-            user = result.scalars().first()
-            user_id = str(user.id) if user else "00000000-0000-0000-0000-000000000000"
-            print(f"DEBUG: Using user_id {user_id}", flush=True)
+            # Create placeholder Diary Record
+            target_date = request.diaryDate or datetime.date.today()
+            
+            # Check if diary already exists for this date/user
+            stmt = select(Diary).where((Diary.user_id == uuid.UUID(user_id)) & (Diary.diary_date == target_date))
+            result = await db.execute(stmt)
+            existing_diary = result.scalars().first()
+            
+            if existing_diary:
+                db_diary = existing_diary
+                db_diary.content = request.diaryText
+                db_diary.mood = request.mood
+                db_diary.style_preset = request.stylePreset
+                db_diary.generation_options = request.options.dict() if request.options else None
+            else:
+                db_diary = Diary(
+                    user_id=uuid.UUID(user_id),
+                    diary_date=target_date,
+                    content=request.diaryText,
+                    mood=request.mood,
+                    style_preset=request.stylePreset,
+                    generation_options=request.options.dict() if request.options else None
+                )
+                db.add(db_diary)
+            
+            await db.commit()
+            await db.refresh(db_diary)
+            artifact_id = str(db_diary.id)
+            
     except Exception as e:
-        print(f"DEBUG: Error fetching user: {e}", flush=True)
-        user_id = "00000000-0000-0000-0000-000000000000"
+        print(f"DEBUG: Error creating placeholder diary: {e}", flush=True)
+        # Fallback if DB fails, though we might want to error out
+        artifact_id = ""
 
-    current_user_id = user_id # In production, get from token
-
-
-
-    background_tasks.add_task(execute_job, job_id, current_user_id, request)
+    # Create job with artifact_id already set
+    create_job(job_id, user_id=user_id, artifact_id=artifact_id)
+    background_tasks.add_task(execute_job, job_id, user_id, request, artifact_id)
     
-    return {"jobId": job_id}
+    return {"jobId": job_id, "artifactId": artifact_id}
 
 @router.post("/", response_model=DiaryResponse)
 async def create_diary(
@@ -179,7 +204,13 @@ async def create_diary(
     }
 
 @router.get("/user/{user_id}", response_model=List[DiarySummaryResponse])
-async def get_user_diaries(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_user_diaries(
+    user_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if user_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view these diaries")
     stmt = select(Diary).where(Diary.user_id == uuid.UUID(user_id)).order_by(Diary.diary_date.desc())
     result = await db.execute(stmt)
     diaries = result.scalars().all()
@@ -200,7 +231,14 @@ async def get_user_diaries(user_id: str, db: AsyncSession = Depends(get_db)):
     return items
 
 @router.get("/search", response_model=List[DiarySummaryResponse])
-async def search_diaries(user_id: str, query: str, db: AsyncSession = Depends(get_db)):
+async def search_diaries(
+    user_id: str, 
+    query: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if user_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
     from app.agent.bedrock import get_embedding
     from app.models.models import DiaryChunk, DiaryChunkEmbedding
     import numpy as np
@@ -296,13 +334,20 @@ async def search_diaries(user_id: str, query: str, db: AsyncSession = Depends(ge
         ]
 
 @router.get("/{diary_id}", response_model=DiaryResponse)
-async def get_diary(diary_id: str, db: AsyncSession = Depends(get_db)):
+async def get_diary(
+    diary_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     stmt = select(Diary).where(Diary.id == diary_id)
     result = await db.execute(stmt)
     diary = result.scalars().first()
     
     if not diary:
         raise HTTPException(status_code=404, detail="Diary not found")
+        
+    if str(diary.user_id) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
         
     return {
         "id": str(diary.id),
@@ -313,13 +358,20 @@ async def get_diary(diary_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 @router.delete("/{diary_id}")
-async def delete_diary(diary_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_diary(
+    diary_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     stmt = select(Diary).where(Diary.id == diary_id)
     result = await db.execute(stmt)
     diary = result.scalars().first()
     
     if not diary:
         raise HTTPException(status_code=404, detail="Diary not found")
+        
+    if str(diary.user_id) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
         
     await db.delete(diary)
     await db.commit()

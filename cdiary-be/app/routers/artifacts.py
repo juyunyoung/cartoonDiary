@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ import datetime
 from app.database import get_db
 from app.models.models import Diary, DiaryChunk
 from app.agent.bedrock import make_access_url, S3_BUCKET
+from app.auth.security import get_current_user
 
 router = APIRouter()
 
@@ -44,13 +45,19 @@ async def list_artifacts(
     limit: int = 20, 
     query: Optional[str] = None, 
     user_id: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
+    # Only allow listing own artifacts
+    effective_user_id = user_id or current_user["id"]
+    if effective_user_id != current_user["id"]:
+         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
     # Simple list of recent diaries
     stmt = select(Diary).order_by(Diary.created_at.desc())
     
-    if user_id:
-        stmt = stmt.where(Diary.user_id == user_id)
+    if effective_user_id:
+        stmt = stmt.where(Diary.user_id == effective_user_id)
         
     if not query:
 
@@ -111,7 +118,11 @@ async def list_artifacts(
     return {"items": items}
 
 @router.get("/{artifact_id}", response_model=ArtifactResponse)
-async def get_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
+async def get_artifact(
+    artifact_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     # 1. Fetch Diary
     stmt = select(Diary).where(Diary.id == artifact_id)
     result = await db.execute(stmt)
@@ -119,6 +130,9 @@ async def get_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
     
     if not diary:
         raise HTTPException(status_code=404, detail="Artifact not found")
+
+    if str(diary.user_id) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view this artifact")
         
     # 2. Fetch Chunks
     stmt_chunks = select(DiaryChunk).where(DiaryChunk.diary_id == artifact_id).order_by(DiaryChunk.chunk_index)
@@ -160,7 +174,11 @@ async def get_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 @router.delete("/{artifact_id}")
-async def delete_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_artifact(
+    artifact_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     # 1. Fetch Diary
     stmt = select(Diary).where(Diary.id == artifact_id)
     result = await db.execute(stmt)
@@ -168,6 +186,9 @@ async def delete_artifact(artifact_id: str, db: AsyncSession = Depends(get_db)):
     
     if not diary:
         raise HTTPException(status_code=404, detail="Artifact not found")
+
+    if str(diary.user_id) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this artifact")
         
     # 2. Delete
     # Associated chunks should be deleted via cascade if configured in DB models, 

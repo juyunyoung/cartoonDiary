@@ -47,13 +47,13 @@ export const WriteDiaryScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const { jobId } = await api.generateDiary({
+      const { artifactId } = await api.generateDiary({
         diaryText: text,
         mood,
         stylePreset: style,
         options: { moreFunny: false, focusEmotion: false, lessText: false }
       });
-      navigate(`/generate/${jobId}`);
+      navigate(`/result/${artifactId}`);
     } catch (error) {
       showAlert(t('gen_start_failed'));
       console.error(error);

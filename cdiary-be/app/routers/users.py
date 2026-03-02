@@ -13,6 +13,7 @@ from app.auth.security import get_password_hash # If password update needed
 # for now we'll accept userId in path/body for MVP simplicity as per user request to "add/delete/update"
 
 from app.agent.bedrock import make_access_url, S3_BUCKET
+from app.auth.security import get_current_user
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     profile_image_s3_key: Optional[str] = None
     profile_prompt: Optional[str] = None
+    seed: Optional[int] = None
 
 class UserResponse(BaseModel):
     id: str
@@ -27,10 +29,17 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     profile_image_url: Optional[str] = None
     profile_prompt: Optional[str] = None
+    seed: Optional[int] = None
     status: str
 
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_user(
+    user_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if user_id != current_user["id"]:
+         raise HTTPException(status_code=403, detail="Not authorized")
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalars().first()
@@ -48,11 +57,19 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
         "email": user.email,
         "profile_image_url": url,
         "profile_prompt": user.profile_prompt,
+        "seed": user.seed,
         "status": user.status
     }
 
 @router.put("/{user_id}")
-async def update_user(user_id: str, user_data: UserUpdate, db: AsyncSession = Depends(get_db)):
+async def update_user(
+    user_id: str, 
+    user_data: UserUpdate, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if user_id != current_user["id"]:
+         raise HTTPException(status_code=403, detail="Not authorized")
     # Convert string uuid to UUID object for query if needed, or SQLAlchemy handles it via TypeDecorator
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
@@ -79,7 +96,13 @@ async def update_user(user_id: str, user_data: UserUpdate, db: AsyncSession = De
     }
 
 @router.delete("/{user_id}")
-async def delete_user(user_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_user(
+    user_id: str, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    if user_id != current_user["id"]:
+         raise HTTPException(status_code=403, detail="Not authorized")
     stmt = select(User).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalars().first()

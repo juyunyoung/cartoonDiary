@@ -56,6 +56,11 @@ const translations: TranslationDict = {
   "glasses": { ko: "안경", en: "Glasses" },
   "freckles": { ko: "주근깨", en: "Freckles" },
   "generate_char": { ko: "캐릭터 만들기", en: "Create Character" },
+  "age": { ko: "나이", en: "Age" },
+  "age_child": { ko: "어린이", en: "Child" },
+  "age_young": { ko: "젊은사람", en: "Young Adult" },
+  "age_middle": { ko: "중년", en: "Middle-aged" },
+  "age_elderly": { ko: "노인", en: "Elderly" },
   "generating": { ko: "생성 중...", en: "Generating..." },
   "regen": { ko: "다시 생성", en: "Regenerate" },
   "save_char": { ko: "저장하기", en: "Save Character" },
@@ -89,6 +94,8 @@ const translations: TranslationDict = {
   "save_share": { ko: "저장 및 공유", en: "Save & Share" },
   "saved_at": { ko: "저장되었습니다!", en: "Saved!" },
   "regen_start_failed": { ko: "재생성 시작에 실패했습니다.", en: "Failed to start regeneration." },
+  "creating_comic": { ko: "만화를 만드는 중...", en: "Creating your comic..." },
+  "please_wait": { ko: "잠시만 기다려 주세요.", en: "Please wait..." },
 
   // Auth
   "sign_in_title": { ko: "로그인", en: "Sign In" },
@@ -104,6 +111,10 @@ const translations: TranslationDict = {
   "register_success": { ko: "회원가입이 완료되었습니다! 환영합니다.", en: "Registration successful! Welcome." },
   "registration_failed": { ko: "회원가입에 실패했습니다.", en: "Registration failed." },
   "invalid_auth": { ko: "아이디 또는 비밀번호가 잘못되었습니다.", en: "Invalid username or password." },
+  "login_subtitle": { ko: "당신의 일상을 만화로 그려보세요.", en: "Turn your daily moments into a comic strip." },
+  "or_text": { ko: "또는", en: "OR" },
+  "google_signin": { ko: "Google로 로그인", en: "Sign in with Google" },
+  "terms_privacy_agreement": { ko: "로그인함으로써 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.", en: "By signing in, you agree to our Terms of Service and Privacy Policy." },
 };
 
 interface LanguageContextType {

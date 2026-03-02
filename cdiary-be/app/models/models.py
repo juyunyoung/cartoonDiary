@@ -51,6 +51,7 @@ class User(Base):
     
     profile_image_s3_key = Column(Text)
     profile_prompt = Column(Text)
+    seed = Column(Integer, default=0)
     
     status = Column(String(20), default='active', nullable=False)
     

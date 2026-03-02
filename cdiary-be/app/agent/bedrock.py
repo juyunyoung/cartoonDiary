@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import random
 import boto3
 from botocore.exceptions import ClientError
+from . import prompts
 
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -133,36 +134,16 @@ def get_embedding(text: str) -> List[float]:
         raise
 
 
-def generate_storyboard(diary_text: str, style: str = "comic") -> List[Dict[str, str]]:
+def generate_storyboard(diary_text: str, style: str = "comic", num_cuts: int = 1) -> List[Dict[str, str]]:
     """
     Analyzes diary text and generates a 4-panel storyboard.
     Returns a list of 4 dicts: [{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}]
     """
-    prompt = f"""
-    You are a professional webtoon storyboard artist.
-    Analyze the following diary entry and create a 4-panel comic strip storyboard.
-    
-    Diary Entry:
-    "{diary_text}"
-    
-    Style: {style}
-    
-    Requirements:
-    1. Break down the story into exactly 4 panels (Intro, Development, Twist/Climax, Conclusion).
-    2. For each panel, provide:
-       - "description": Visual description of the scene.
-       - "text": Brief narration or dialogue (keep it short).
-       - "image_prompt": A stable diffusion style prompt for generating the image.
-    
-    Output Format: JSON Array of 4 objects.
-    Example:
-    [
-        {{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}},
-        ...
-    ]
-    
-    RETURN ONLY THE JSON ARRAY. NO MARKDOWN.
-    """
+    prompt = prompts.STORYBOARD_PROMPT_TEMPLATE.format(
+        diary_text=diary_text,
+        style=style,
+        num_cuts=num_cuts
+    )
     
     response_text = invoke_text_model(prompt)
     
@@ -196,21 +177,8 @@ def generate_text_to_image(cut_prompt: str, seed: int = 42) -> tuple[Dict[str, A
     model_id = "amazon.nova-canvas-v1:0"
     
     # 4-Panel Strip Constraints
-    text = (
-            "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
-            "Single character, one person only. Centered composition. "
-            "No text of any kind. No letters, numbers, logos, watermarks. No speech bubbles. "
-            "Ensure only one character is visible in the scene. No collection, no stickers. "
-            f"{cut_prompt}" 
-        )
-    negative = (
-        "text, letters, words, typography, watermark, logo, signature, "
-        "speech bubble, thought bubble, caption, subtitle, "
-        "photorealistic, realistic, 3d, photo, render, "
-        "blurry, low quality, noise, artifacts, "
-        "harsh shadows, high contrast, neon, oversaturated, "
-        "extra characters, crowd, multiple views, split screen, character sheet, reference sheet, stickers, collection, grid"
-    )
+    text = prompts.IMAGE_GEN_STYLE_PREFIX + prompts.IMAGE_GEN_CLEANUP_INSTRUCTIONS + cut_prompt
+    negative = prompts.IMAGE_GEN_NEGATIVE_PROMPT
     
     body = {
         "taskType": "TEXT_IMAGE",
@@ -227,7 +195,7 @@ def generate_text_to_image(cut_prompt: str, seed: int = 42) -> tuple[Dict[str, A
             "seed": seed
         }
     }
-
+    print("cut_prompt==="+cut_prompt)
     print(f"Invoking {model_id} (TEXT_IMAGE) with Body='{text}'...")
 
     response = client.invoke_model(
@@ -257,14 +225,7 @@ def generate_image_variation(cut_prompt: str, ref_image: bytes, seed: int = 42) 
     b64_img = base64.b64encode(ref_image).decode("utf-8")
     
     # 4-Panel Strip Constraints for Variation
-    full_text = (
-        "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
-        "The provided reference image is for character identity (facial features, hair, outfit) ONLY. "
-        "CRITICAL: The composition, camera angle, and framing MUST strictly follow the text description below, NOT the reference image. "
-        "Single character, one person only. Centered composition. "
-        "No text, no stickers, no collection, no grid. "
-        f"{cut_prompt}"
-    )
+    full_text = prompts.IMAGE_VARIATION_PROMPT_TEMPLATE.format(cut_prompt=cut_prompt)
 
     body = {
         "taskType": "IMAGE_VARIATION",

@@ -14,22 +14,25 @@ export const CharacterCreationScreen: React.FC = () => {
 
   // State for character options
   const [gender, setGender] = useState<'female' | 'male'>('female');
+  const [age, setAge] = useState<'child' | 'young' | 'middle' | 'elderly'>('young');
   const [hairLength, setHairLength] = useState<'long' | 'medium' | 'short'>('long');
   const [hasGlasses, setHasGlasses] = useState<boolean>(false);
   const [hasFreckles, setHasFreckles] = useState<boolean>(false);
 
   // State for image generation
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedSeed, setGeneratedSeed] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
 
   const constructPrompt = () => {
     const genderTerm = gender === 'female' ? 'girl' : 'boy';
+    const ageTerm = age === 'child' ? 'child' : age === 'young' ? 'young adult' : age === 'middle' ? 'middle-aged adult' : 'elderly person';
     const hairTerm = hairLength === 'long' ? 'long hair' : hairLength === 'medium' ? 'shoulder-length bob hair' : 'short pixie cut hair';
     const glassesTerm = hasGlasses ? ', wearing glasses' : '';
     const frecklesTerm = hasFreckles ? ', with freckles' : '';
 
-    return `A cute cartoon character, ${genderTerm} with ${hairTerm}${glassesTerm}${frecklesTerm}. Simple, clean lines, flat colors, webtoon style. Single face portrait, close-up, front view, face only. Solo character. NO body, NO full body, NO multiple views, NO character sheet, NO split screen. Neutral background.`;
+    return `A cute cartoon character, ${ageTerm} ${genderTerm} with ${hairTerm}${glassesTerm}${frecklesTerm}. Simple, clean lines, flat colors, webtoon style. Single face portrait, close-up, front view, face only. Solo character. NO body, NO full body, NO multiple views, NO character sheet, NO split screen. Neutral background.`;
   };
 
   const handleGenerate = async () => {
@@ -39,6 +42,7 @@ export const CharacterCreationScreen: React.FC = () => {
       const prompt = constructPrompt();
       const result = await api.generateImage(prompt);
       setGeneratedImage(result.image_data); // Use Base64 data for display
+      setGeneratedSeed(result.seed);
 
     } catch (error) {
       console.error("Failed to generate character:", error);
@@ -57,16 +61,23 @@ export const CharacterCreationScreen: React.FC = () => {
       localStorage.setItem('userId', userId);
 
       // 2. Save profile image to S3 via backend
-      const { s3_key, image_url } = await api.saveProfileImage(userId, generatedImage, constructPrompt());
+      const { s3_key, image_url } = await api.saveProfileImage(
+        userId,
+        generatedImage,
+        constructPrompt(),
+        generatedSeed || undefined
+      );
 
       // 3. Save character metadata to LocalStorage (with S3 URL this time)
       const characterData = {
         gender,
+        age,
         hairLength,
         hasGlasses,
         hasFreckles,
         imageUrl: image_url, // Use the permanent S3 URL
-        s3Key: s3_key
+        s3Key: s3_key,
+        seed: generatedSeed
       };
       localStorage.setItem('user_character', JSON.stringify(characterData));
 
@@ -151,6 +162,33 @@ export const CharacterCreationScreen: React.FC = () => {
                   label={t('male')}
                   selected={gender === 'male'}
                   onClick={() => setGender('male')}
+                />
+              </div>
+            </div>
+
+            {/* Age Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('age')}</label>
+              <div className="grid grid-cols-2 gap-3">
+                <OptionButton
+                  label={t('age_child')}
+                  selected={age === 'child'}
+                  onClick={() => setAge('child')}
+                />
+                <OptionButton
+                  label={t('age_young')}
+                  selected={age === 'young'}
+                  onClick={() => setAge('young')}
+                />
+                <OptionButton
+                  label={t('age_middle')}
+                  selected={age === 'middle'}
+                  onClick={() => setAge('middle')}
+                />
+                <OptionButton
+                  label={t('age_elderly')}
+                  selected={age === 'elderly'}
+                  onClick={() => setAge('elderly')}
                 />
               </div>
             </div>

@@ -13,6 +13,7 @@ from app.routers.jobs import update_job
 import io
 from PIL import Image
 import random
+from . import prompts
 
 def _set_progress(state: OrchestrationState, progress: int, status: str | None = None, error: str | None = None):
     payload = {"progress": progress}
@@ -26,34 +27,11 @@ def _set_progress(state: OrchestrationState, progress: int, status: str | None =
 def plan_storyboard(state: OrchestrationState) -> OrchestrationState:
     _set_progress(state, 10, status="RUNNING")
 
-    prompt = f"""
-        You are a professional 'Diary to Comic Storyboard' editor.
-        Create a {state.num_cuts}-cut comic storyboard from the diary below.
-        Output MUST be in JSON format only.
-
-        Required Schema:
-        {{
-        "character_appearance": "Concise description of the main character based on the profile provided. (max 15 words)",
-        "cuts": [
-            {{
-            "cut_index": 1,
-            "summary": "Short summary of the scene",
-            "emotion": "Dominant emotion",
-            "scene": "Visual scene description",
-            "dialogue": "Character dialogue (or null if none)",
-            "camera": "Camera angle/shot type (or null if none)"
-            }}
-        ]
-        }}
-
-        Character Profile (STRICTLY FOLLOW THIS):
-        \"\"\"{state.profile_prompt or "A person"}\"\"\"
-
-        Diary:
-        \"\"\"{state.diary}\"\"\"
-
-        Ensure all content in the JSON (summary, scene, etc.) is written in English.
-        """
+    prompt = prompts.PLAN_STORYBOARD_PROMPT_TEMPLATE.format(
+        num_cuts=state.num_cuts,
+        profile_prompt=state.profile_prompt or "A person",
+        diary=state.diary
+    )
     raw = invoke_text_model(prompt, temperature=0.2)
 
     # 안전하게 JSON 파싱 시도 (모델이 종종 앞/뒤 말 붙임)
@@ -72,42 +50,22 @@ def build_prompts(state: OrchestrationState) -> OrchestrationState:
     assert state.storyboard is not None
     _set_progress(state, 35)
 
-    prompts: List[ImagePrompt] = []
+    image_prompts: List[ImagePrompt] = []
     for cut in state.storyboard.cuts:
-        prompt = f"""
-            Write an image generation prompt for a webtoon panel.
-            You must strictly follow the style guide below:
-            - {state.style_guide}
-
-            Few-Shot Examples (Focus on location and action):
-            Panel 1 (BUS STOP OUTSIDE): Bus stop sign + bus at the curb. Boy is outside on the sidewalk waving. Driver visible through front window waiting.
-            Panel 2 (RESTAURANT): Restaurant table with tonkatsu plate clearly visible. Boy seated smiling, holding chopsticks.
-            Panel 3 (HOME DOORWAY): Boy opens front door. Full dog visible wagging and greeting.
-            Panel 4 (BEDROOM OVERHEAD): Overhead bedroom view with bed. Boy sits on bed with dog nearby, smiling contentedly.
-
-            Cut Information:
-            - Character: {state.storyboard.character_appearance or "A generic person"}
-            - Summary: {cut.summary}
-            - Emotion: {cut.emotion}
-            - Scene: {cut.scene}
-            - Dialogue: {cut.dialogue}
-            - Camera: {cut.camera}
-
-            Output only the single-line prompt text in English.
-            Focus on the visual scene only. Do not include dialogue, speech bubbles, or specific text/captions in the prompt.
-            Ensure the prompt describes a single scene and only one instance of the character. 
-            Do not include phrases like "multiple views," "different poses," or "collection."
-            
-            CRITICAL: Explicitly specify the camera shot/framing (e.g., "Full body shot", "Medium shot", "Side view") to ensure a varied and dynamic composition. Avoid repeating the same framing in every panel.
-            
-            Just refer to them as "the character".
-
-            """
+        prompt = prompts.BUILD_IMAGE_PROMPT_TEMPLATE.format(
+            style_guide=state.style_guide,
+            character_appearance=state.storyboard.character_appearance or "A generic person",
+            summary=cut.summary,
+            emotion=cut.emotion,
+            scene=cut.scene,
+            dialogue=cut.dialogue,
+            camera=cut.camera
+        )
         p = invoke_text_model(prompt, temperature=0.3).strip()
-        prompts.append(ImagePrompt(cut_index=cut.cut_index, prompt=p))
+        image_prompts.append(ImagePrompt(cut_index=cut.cut_index, prompt=p))
 
-    state.prompts = prompts
-    update_job(state.job_id, prompts=prompts)
+    state.prompts = image_prompts
+    update_job(state.job_id, prompts=image_prompts)
     _set_progress(state, 45)
     return state
 
@@ -147,11 +105,18 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
              ref_bytes = state.profile_image
              
         # Use ref_image if available
+        # Determine seed: use profile_seed if it's the first cut, otherwise 42 or random? 
+        # Actually user wants to use the seed for consistency. 
+        # Let's use the profile_seed for all panels if available, or just the first?
+        # Usually seed + same character desc + reference image works best.
+        current_seed = state.seed if state.seed is not None else 42
+        
         out = invoke_image_model_to_s3(
             cut_prompt=full_prompt, 
             job_id=state.job_id, 
             cut_index=p.cut_index,
-            ref_image=ref_bytes
+            ref_image=ref_bytes,
+            seed=current_seed
         )
         
         # Update ref_bytes for the NEXT panel to be THIS panel's bytes
@@ -260,20 +225,11 @@ def retry_failed(state: OrchestrationState) -> OrchestrationState:
 
         # 프롬프트 수정
         old_prompt = next(p.prompt for p in state.prompts if p.cut_index == r.cut_index)
-        revise_prompt = f"""
-            You are an Image Prompt Rewriter.
-            Keep the original prompt's core but improve it to resolve the QA failure reason.
-            Output only the revised single-line prompt text in English.
-
-            Original Prompt:
-            {old_prompt}
-
-            QA Failure Reason:
-            {r.reason}
-
-            Fix Hint:
-            {r.fix_hint}
-            """
+        revise_prompt = prompts.REVISE_IMAGE_PROMPT_TEMPLATE.format(
+            old_prompt=old_prompt,
+            reason=r.reason,
+            fix_hint=r.fix_hint
+        )
         new_prompt = invoke_text_model(revise_prompt, temperature=0.25).strip()
         print(f"New Prompt: {new_prompt}")
         # state 반영

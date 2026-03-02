@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from enum import Enum
+from fastapi import Depends
+from app.auth.security import get_current_user
 
 router = APIRouter()
 
@@ -38,15 +40,15 @@ from fastapi.encoders import jsonable_encoder
 # logger = logging.getLogger("uvicorn") # Switching to print for visibility
 
 @router.get("/stream")
-async def stream_jobs():
+async def stream_jobs(current_user: dict = Depends(get_current_user)):
     """Server-Sent Events endpoint to stream active jobs state."""
+    user_id = current_user["id"]
     async def event_generator():
         while True:
-            # Send current jobs state as JSON string
-            # Copy to avoid "dictionary changed size during iteration"
-            current_jobs = dict(JOBS)
+            # Filter jobs for current user only
+            current_jobs = {k: v for k, v in JOBS.items() if v.get("userId") == user_id}
             yield f"data: {json.dumps(jsonable_encoder(current_jobs))}\n\n"
-            await asyncio.sleep(1) # Emit every second
+            await asyncio.sleep(1)
             
     return StreamingResponse(
         event_generator(), 
@@ -65,18 +67,15 @@ async def debug_jobs():
     return JOBS
 
 @router.get("/{job_id}", response_model=JobResponse)
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str, current_user: dict = Depends(get_current_user)):
     print(f"Fetching job status for: {job_id} from JOBS {id(JOBS)}", flush=True)
     job = JOBS.get(job_id)
     if not job:
-        keys = list(JOBS.keys())
-        print(f"Job {job_id} NOT FOUND. Active jobs: {keys} (JOBS ID: {id(JOBS)})", flush=True)
-        # Verify if job_id is strictly equal to any key (whitespace check)
-        for k in keys:
-            if k.strip() == job_id.strip():
-                 print(f"Key match found but lookup failed? k='{k}' vs id='{job_id}'")
-                 
-        raise HTTPException(status_code=404, detail=f"Job not found. Active Jobs: {keys}")
+        # ... existing not found logic ...
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.get("userId") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view this job")
     
     return JobResponse(
         jobId=job_id,
@@ -110,12 +109,13 @@ def update_job(job_id: str, status: Optional[JobStatus] = None, step: Optional[s
     JOBS[job_id].update(updates)
 
 
-def create_job(job_id: str):
-    print(f"Creating new job: {job_id} in JOBS {id(JOBS)}", flush=True)
+def create_job(job_id: str, user_id: Optional[str] = None, artifact_id: Optional[str] = None):
+    print(f"Creating new job: {job_id} for user {user_id}", flush=True)
     JOBS[job_id] = {
+        "userId": user_id,
         "status": JobStatus.READING_DIARY,
         "step": "Starting...",
         "progress": 0.0,
-        "artifactId": None,
+        "artifactId": artifact_id,
         "error": None
     }
