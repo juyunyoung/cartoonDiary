@@ -1,10 +1,9 @@
 import { DiaryEntryRequest, JobResponse, ArtifactResponse, ArtifactSummary } from '../types';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api';
-
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const api = {
-  async generateDiary(data: DiaryEntryRequest): Promise<{ jobId: string }> {
+  async generateDiary(data: DiaryEntryRequest): Promise<{ jobId: string, artifactId: string }> {
     const response = await fetch(`${API_BASE_URL}/diary/generate`, {
       method: 'POST',
       headers: {
@@ -43,7 +42,7 @@ export const api = {
     return response.json();
   },
 
-  async generateImage(prompt: string): Promise<{ image_url: string, s3_key: string, image_data: string }> {
+  async generateImage(prompt: string): Promise<{ image_url: string, s3_key: string, image_data: string, seed: number }> {
     const response = await fetch(`${API_BASE_URL}/image/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -53,24 +52,32 @@ export const api = {
     return response.json();
   },
 
-  async saveProfileImage(userId: string, imageData: string, profilePrompt?: string): Promise<{ s3_key: string, image_url: string }> {
+  async saveProfileImage(userId: string, imageData: string, profilePrompt?: string, seed?: number): Promise<{ s3_key: string, image_url: string }> {
     const response = await fetch(`${API_BASE_URL}/image/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, imageData, profilePrompt }),
+      body: JSON.stringify({ userId, imageData, profilePrompt, seed }),
     });
     if (!response.ok) throw new Error('Failed to save profile image');
     return response.json();
   },
 
   async getUser(userId: string): Promise<{ id: string, username: string, email?: string, profile_image_url?: string, profile_prompt?: string }> {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`);
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) throw new Error('Failed to get user');
     return response.json();
   },
 
   async getJobStatus(jobId: string): Promise<JobResponse> {
-    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`);
+    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) throw new Error('Failed to get job status');
     return response.json();
   },
@@ -88,7 +95,11 @@ export const api = {
       url = `${API_BASE_URL}/diary/user/${userId}`;
     }
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) throw new Error('Failed to fetch diaries');
 
     // The backend now returns a List[DiarySummaryResponse] which matches ArtifactSummary[]
@@ -97,13 +108,21 @@ export const api = {
   },
 
   async searchDiaries(userId: string, query: string): Promise<ArtifactSummary[]> {
-    const response = await fetch(`${API_BASE_URL}/diary/search?user_id=${userId}&query=${encodeURIComponent(query)}`);
+    const response = await fetch(`${API_BASE_URL}/diary/search?user_id=${userId}&query=${encodeURIComponent(query)}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) throw new Error('Failed to search diaries');
     return response.json();
   },
 
   async getArtifact(artifactId: string): Promise<ArtifactResponse> {
-    const response = await fetch(`${API_BASE_URL}/artifacts/${artifactId}`);
+    const response = await fetch(`${API_BASE_URL}/artifacts/${artifactId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
     if (!response.ok) throw new Error('Failed to get artifact');
     return response.json();
   },
@@ -119,6 +138,7 @@ export const api = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
       body: JSON.stringify(data),
     });
@@ -129,6 +149,9 @@ export const api = {
   async deleteUser(userId: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
       method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
     });
     if (!response.ok) throw new Error('Failed to delete user');
     return response.json();
@@ -137,8 +160,23 @@ export const api = {
   async deleteArtifact(artifactId: string): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/artifacts/${artifactId}`, {
       method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
     });
     if (!response.ok) throw new Error('Failed to delete artifact');
+    return response.json();
+  },
+  async updateArtifact(artifactId: string, data: { diaryText: string }): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/artifacts/${artifactId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update artifact');
     return response.json();
   }
 };

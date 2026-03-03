@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+import sys
+import uvicorn
 from app.routers import diary, artifacts, image, auth, users, jobs
 from app.database import engine, Base
 
@@ -13,18 +16,14 @@ async def startup():
         
         # Safely add content_embedding column if it doesn't exist for vector search
         try:
-            from sqlalchemy import text
             await conn.execute(text("ALTER TABLE diaries ADD COLUMN content_embedding JSON"))
             print("Added content_embedding column to diaries table.", flush=True)
         except Exception:
             # Column likely already exists
             pass
 
-from fastapi import Request
-
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    import sys
     print(f"REQUEST: {request.method} {request.url.path}", flush=True)
     response = await call_next(request)
     print(f"RESPONSE: {response.status_code}", flush=True)
@@ -56,5 +55,4 @@ def health_check():
     return {"status": "ok"}
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app,  port=5050)
+    uvicorn.run(app, port=5050)

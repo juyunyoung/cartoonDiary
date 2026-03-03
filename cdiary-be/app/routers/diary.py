@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 import datetime
 import uuid
 import io
+import sys
 from PIL import Image
 from app.agent.bedrock import get_embedding
 from app.models.models import DiaryChunk, DiaryChunkEmbedding
@@ -57,9 +58,6 @@ async def process_pending_embeddings(user_id: str):
     """
     Background task to process pending diary chunk embeddings
     """
-    from app.agent.bedrock import get_embedding
-    from app.models.models import DiaryChunk, DiaryChunkEmbedding
-    
     async with AsyncSessionLocal() as db:
         # Fetch chunks with pending status for this user
         uid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
@@ -106,7 +104,6 @@ async def generate_diary_comic(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
-    import sys
     print(f"DEBUG: Received generation request for user {current_user['id']}", flush=True)
     
     job_id = uuid.uuid4().hex
@@ -239,9 +236,7 @@ async def search_diaries(
 ):
     if user_id != current_user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized")
-    from app.agent.bedrock import get_embedding
-    from app.models.models import DiaryChunk, DiaryChunkEmbedding
-    import numpy as np
+    
 
     print(f"DEBUG: Semantic search for query '{query}' (user {user_id})", flush=True)
 

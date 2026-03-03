@@ -15,12 +15,15 @@ Requirements:
 2. For each panel, provide:
    - "description": Visual description of the scene.
    - "text": Brief narration or dialogue (keep it short).
-   - "image_prompt": A stable diffusion style prompt for generating the image.
+   - "image_prompt": A stable diffusion style prompt.
+   - "camera": Suggested camera angle (e.g., "Wide Shot", "Full Shot", "Medium Shot", "Eye Level", "Overhead"). 
+
+CRITICAL: Ensure variety in camera angles. Avoid using the same shot type (like Medium Shot) for all panels. At least one panel should be a "Wide Shot" or "Full Shot" to show the environment.
 
 Output Format: JSON Array of {num_cuts} objects.
 Example:
 [
-    {{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}},
+    {{"panel": 1, "description": "...", "text": "...", "image_prompt": "...", "camera": "Wide Shot"}},
     ...
 ]
 
@@ -28,7 +31,7 @@ RETURN ONLY THE JSON ARRAY. NO MARKDOWN.
 """
 
 # --- Image Generation (Text-to-Image) ---
-IMAGE_GEN_STYLE_PREFIX = "Clean cartoon webtoon style."
+IMAGE_GEN_STYLE_PREFIX = "Clean cartoon webtoon style. Single panel, single scene. Dynamic composition with depth of field. "
 IMAGE_GEN_CLEANUP_INSTRUCTIONS = "No text of any kind. No letters, numbers, logos, watermarks. No speech bubbles. "
 
 IMAGE_GEN_NEGATIVE_PROMPT = (
@@ -36,12 +39,12 @@ IMAGE_GEN_NEGATIVE_PROMPT = (
     "speech bubble, thought bubble, caption, subtitle, "
     "photorealistic, realistic, 3d, photo, render, "
     "blurry, low quality, noise, artifacts, "
-    "crowd, multiple views, split screen, character sheet, reference sheet, stickers, collection, grid"
+    "multiple views, split screen, character sheet, reference sheet, stickers, collection, grid"
 )
 
 # --- Image Variation ---
 IMAGE_VARIATION_PROMPT_TEMPLATE = (
-    "Clean cartoon webtoon style. Gentle lighting. Soft shading. "
+    "Clean cartoon webtoon style. Single panel, single scene. Gentle lighting. Soft shading. "
     "The provided reference image is for character identity (facial features, hair, outfit) ONLY. "
     "CRITICAL: Create a dynamic scene with movement and action. The composition, camera angle, and framing MUST strictly follow the text description below, NOT the reference image. "
     "Single character, one person only. Full body or medium shot showing active movement. "
@@ -57,15 +60,15 @@ Output MUST be in JSON format only.
 
 Required Schema:
 {{
-"character_appearance": "Concise description of the main character based on the profile provided. (max 15 words)",
+"character_appearance": "Extremely concise description of the main character (hair, gender, key outfit). (max 10 words)",
 "cuts": [
     {{
     "cut_index": 1,
     "summary": "Short summary of the scene",
     "emotion": "Dominant emotion",
-    "scene": "Visual scene description",
+    "scene": "Visual scene description including the background and environment",
     "dialogue": "Character dialogue (or null if none)",
-    "camera": "Camera angle/shot type (or null if none)"
+    "camera": "Camera angle/shot type (MANDATORY: Wide Shot, Full Shot, Medium Shot, or Close-up. Use variety!)"
     }}
 ]
 }}
@@ -76,6 +79,7 @@ Character Profile (STRICTLY FOLLOW THIS):
 Diary:
 \"\"\"{diary}\"\"\"
 
+CRITICAL: Do not repeat the same camera angle for all cuts. Ensure at least one cut is a 'Wide Shot' or 'Full Shot' to show the character's surroundings clearly.
 Ensure all content in the JSON (summary, scene, etc.) is written in English.
 """
 
@@ -85,11 +89,9 @@ Write an image generation prompt for a webtoon panel.
 You must strictly follow the style guide below:
 - {style_guide}
 
-Few-Shot Examples (Focus on location and action):
-Panel 1 (BUS STOP OUTSIDE): Bus stop sign + bus at the curb. Boy is outside on the sidewalk waving. Driver visible through front window waiting.
-Panel 2 (RESTAURANT): Restaurant table with tonkatsu plate clearly visible. Boy seated smiling, holding chopsticks.
-Panel 3 (HOME DOORWAY): Boy opens front door. Full dog visible wagging and greeting.
-Panel 4 (BEDROOM OVERHEAD): Overhead bedroom view with bed. Boy sits on bed with dog nearby, smiling contentedly.
+Few-Shot Examples (Focus on variety and environment):
+Panel (WIDE SHOT, BUS STOP): Panoramic view of a street at sunset. A lonely bus stop with one person waiting. Large bus approaching in the distance.
+
 
 Cut Information:
 - Character: {character_appearance}
@@ -100,13 +102,15 @@ Cut Information:
 - Camera: {camera}
 
 Output only the single-line prompt text in English.
-Focus on the dynamic visual scene, character action, and movement. Do not include dialogue, speech bubbles, or specific text/captions in the prompt.
-Ensure the prompt describes a single scene showing the character in an active, situational context. 
-Do not include phrases like "multiple views," "different poses," or "collection."
 
-CRITICAL: Explicitly specify the camera shot/framing (e.g., "Full body shot", "Medium shot", "Side view") to ensure a varied and dynamic composition. Avoid repeating the same framing in every panel.
-
-Just refer to them as "the character".
+STRICT RULES:
+1. START the prompt with the camera/framing instruction (e.g., "Wide shot of...", "Full body shot of...").
+2. Describe the entire composition, emphasizing the ENVIRONMENT and background settings as described in the scene.
+3. Place the character within the scene naturally. Do NOT center the character's face/upper body unless a Close-up is explicitly requested.
+4. If "Wide Shot" or "Full Shot" is requested, the character should be smaller in the frame, showing the surroundings.
+5. Focus on the dynamic visual scene, character action, and movement.
+6. Do not include dialogue, speech bubbles, or specific text/captions in the prompt.
+7. Just refer to them as "the character".
 """
 
 # --- Prompt Revision (from graph.py) ---

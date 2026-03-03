@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import random
+import traceback
 import boto3
 from botocore.exceptions import ClientError
 from . import prompts
@@ -129,9 +130,8 @@ def get_embedding(text: str) -> List[float]:
         return emb
     except Exception as e:
         print(f"DEBUG: get_embedding FAILED: {e}", flush=True)
-        import traceback
         traceback.print_exc()
-        raise
+        raise e
 
 
 def generate_storyboard(diary_text: str, style: str = "comic", num_cuts: int = 1) -> List[Dict[str, str]]:
@@ -180,6 +180,11 @@ def generate_text_to_image(cut_prompt: str, seed: int = 42) -> tuple[Dict[str, A
     text = prompts.IMAGE_GEN_STYLE_PREFIX + prompts.IMAGE_GEN_CLEANUP_INSTRUCTIONS + cut_prompt
     negative = prompts.IMAGE_GEN_NEGATIVE_PROMPT
     
+    # Final length check for Nova Canvas (max 1024)
+    if len(text) > 1024:
+        print(f"WARNING: Truncating prompt for Bedrock (Length: {len(text)})", flush=True)
+        text = text[:1024]
+
     body = {
         "taskType": "TEXT_IMAGE",
         "textToImageParams": {

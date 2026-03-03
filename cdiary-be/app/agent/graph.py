@@ -93,11 +93,21 @@ def generate_images(state: OrchestrationState) -> OrchestrationState:
             
         # Prepend character description for individual generation
         char_desc = state.storyboard.character_appearance or "A generic person"
+        
+        # Ensure lengths are reasonable before combining (Nova limit is 1024)
+        # We target ~950 just to be safe with prefixes/style guides
+        safe_p = p.prompt[:600] if len(p.prompt) > 600 else p.prompt
+        safe_char = char_desc[:200] if len(char_desc) > 200 else char_desc
+
         full_prompt = (
-            f"Main character: {char_desc}\n"
+            f"Scene: {safe_p}\n"
+            f"Main character: {safe_char}\n"
             f"Style: {state.style_guide}\n"
-            f"Please create an image with the following content by referring to the character in the reference image. {p.prompt} \n"
+            f"CRITICAL: Refer to the character in the reference image for appearance, but strictly follow the Scene description for camera angle and composition."
         )
+        # Final safety measure
+        if len(full_prompt) > 1000:
+             full_prompt = full_prompt[:1000]
         # Reference Strategy:
         # 1. First cut uses profile image (if exists)
         # 2. Subsequent cuts use the *previous* panel image for consistency

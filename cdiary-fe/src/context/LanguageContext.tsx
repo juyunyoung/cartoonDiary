@@ -115,6 +115,9 @@ const translations: TranslationDict = {
   "or_text": { ko: "또는", en: "OR" },
   "google_signin": { ko: "Google로 로그인", en: "Sign in with Google" },
   "terms_privacy_agreement": { ko: "로그인함으로써 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.", en: "By signing in, you agree to our Terms of Service and Privacy Policy." },
+  "edit": { ko: "수정", en: "Edit" },
+  "update_success": { ko: "수정되었습니다.", en: "Update successful." },
+  "update_failed_msg": { ko: "수정에 실패했습니다.", en: "Update failed." },
 };
 
 interface LanguageContextType {

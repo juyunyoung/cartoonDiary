@@ -6,6 +6,7 @@ from typing import Optional
 import uuid
 import base64
 import random
+import traceback
 from app.agent.bedrock import generate_text_to_image, save_cut_image, save_profile_image
 from app.database import get_db
 from app.models.models import User
@@ -78,6 +79,5 @@ async def save_image(request: ImageSaveRequest, db: AsyncSession = Depends(get_d
             "image_url": url
         }
     except Exception as e:
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

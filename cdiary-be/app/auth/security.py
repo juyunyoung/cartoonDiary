@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 import os
+from app.models.models import User
+from app.database import get_db
 
 # Secret key for JWT. In production, this should be in .env!
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
@@ -35,11 +37,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme), 
-    token_query: Optional[str] = Query(None, alias="token"),
-    db: AsyncSession = Depends(lambda: None)
+    db: AsyncSession = Depends(get_db)
 ): # db will be injected in route
-    from app.models.models import User
-    from app.database import get_db
     
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

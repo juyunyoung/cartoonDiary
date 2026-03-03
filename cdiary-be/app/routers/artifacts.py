@@ -18,6 +18,9 @@ class Panel(BaseModel):
 class Storyboard(BaseModel):
     panels: List[Panel]
 
+class ArtifactUpdateRequest(BaseModel):
+    diaryText: str
+
 class ArtifactResponse(BaseModel):
     artifactId: str
     finalStripUrl: str
@@ -172,6 +175,34 @@ async def get_artifact(
         mood=diary.mood,
         options=diary.generation_options
     )
+
+@router.put("/{artifact_id}")
+async def update_artifact(
+    artifact_id: str,
+    request: ArtifactUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    # 1. Fetch Diary
+    stmt = select(Diary).where(Diary.id == artifact_id)
+    result = await db.execute(stmt)
+    diary = result.scalars().first()
+    
+    if not diary:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    if str(diary.user_id) != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this artifact")
+        
+    # 2. Update Content
+    diary.content = request.diaryText
+    # Force re-embedding on next search if needed, or clear it
+    diary.content_embedding = None 
+    
+    await db.commit()
+    await db.refresh(diary)
+    
+    return {"status": "success", "message": "Artifact updated"}
 
 @router.delete("/{artifact_id}")
 async def delete_artifact(

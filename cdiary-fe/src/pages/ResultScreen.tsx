@@ -8,6 +8,7 @@ import { api } from '../api/client';
 import { useAlert } from '../context/AlertContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ArtifactResponse } from '../types';
+import { Edit2, Check, X } from 'lucide-react';
 
 export const ResultScreen: React.FC = () => {
   const { artifactId } = useParams<{ artifactId: string }>();
@@ -16,12 +17,16 @@ export const ResultScreen: React.FC = () => {
   const { t } = useLanguage();
   const [artifact, setArtifact] = useState<ArtifactResponse | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchArtifact = async () => {
     if (artifactId) {
       try {
         const data = await api.getArtifact(artifactId);
         setArtifact(data);
+        setEditedText(data.diaryText);
         return data;
       } catch (error) {
         console.error(error);
@@ -76,6 +81,26 @@ export const ResultScreen: React.FC = () => {
     }
   };
 
+  const handleUpdate = async () => {
+    if (!artifactId || !editedText.trim()) return;
+    setIsUpdating(true);
+    try {
+      await api.updateArtifact(artifactId, { diaryText: editedText });
+      const updated = await fetchArtifact();
+      if (updated) {
+        setArtifact(updated);
+        setEditedText(updated.diaryText);
+      }
+      setIsEditing(false);
+      showAlert(t('update_success'));
+    } catch (error) {
+      console.error(error);
+      showAlert(t('update_failed_msg'));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (!artifact) return <div className="p-4 text-center">{t('loading')}</div>;
 
   return (
@@ -98,12 +123,50 @@ export const ResultScreen: React.FC = () => {
         </Card>
 
         {/* Diary Content */}
-        {artifact.diaryText && (
-          <Card className="p-4 mb-4">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">{t('today_diary')}</h3>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">
-              {artifact.diaryText}
-            </p>
+        {artifact.diaryText !== undefined && (
+          <Card className="p-4 mb-4 relative">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">{t('today_diary')}</h3>
+              {!isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                >
+                  <Edit2 size={16} />
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditedText(artifact.diaryText);
+                    }}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors text-red-500"
+                  >
+                    <X size={18} />
+                  </button>
+                  <button
+                    onClick={handleUpdate}
+                    disabled={isUpdating}
+                    className="p-1 hover:bg-gray-100 rounded-full transition-colors text-green-500"
+                  >
+                    {isUpdating ? <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /> : <Check size={18} />}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isEditing ? (
+              <textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                className="w-full p-2 border border-gray-200 rounded-md text-sm min-h-[120px] focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+              />
+            ) : (
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">
+                {artifact.diaryText}
+              </p>
+            )}
           </Card>
         )}
       </main>

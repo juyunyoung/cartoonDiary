@@ -1,6 +1,9 @@
 from __future__ import annotations
 import uuid
 import datetime
+import asyncio
+import boto3
+import traceback
 from typing import Optional
 from sqlalchemy.future import select
 from sqlalchemy import delete
@@ -73,7 +76,6 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
                     profile_prompt = user_obj.profile_prompt
                     profile_seed = user_obj.seed
                     if user_obj.profile_image_s3_key:
-                        import boto3
                         s3 = boto3.client("s3")
                         if S3_BUCKET:
                              obj = s3.get_object(Bucket=S3_BUCKET, Key=user_obj.profile_image_s3_key)
@@ -165,7 +167,6 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
                 img_bytes = None
                 s3_key = img.meta.get("s3_key")
                 if s3_key:
-                     import boto3
                      s3 = boto3.client("s3")
                      try:
                         obj = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
@@ -192,8 +193,8 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
             await db.commit()
 
             # Trigger background task for embeddings
+            # Import inline to avoid circular dependency with app.routers.diary
             from app.routers.diary import process_pending_embeddings
-            import asyncio
             asyncio.create_task(process_pending_embeddings(user_id))
 
             # 6. Compose Strip
@@ -211,6 +212,5 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
             print(f"[{job_id}] Execution complete. Artifact: {diary_id}")
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
         update_job(job_id, JobStatus.FAILED, "Execution failed", 0, error=str(e))
