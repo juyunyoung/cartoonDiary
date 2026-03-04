@@ -60,7 +60,7 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
                 diary_id = str(db_diary.id)
                 
             # Associate job with artifact immediately
-            update_job(job_id, artifactId=diary_id)
+            update_job(job_id, artifact_id=diary_id)
 
 
         # 2. Fetch User Profile (if available) for consistency
@@ -200,7 +200,8 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
             # 6. Compose Strip
             if panel_images_bytes:
                 final_strip_bytes = combine_images_vertically(panel_images_bytes)
-                final_key = f"diary/{user_id}/{diary_id}/full_strip.png"
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                final_key = f"diary/{user_id}/{diary_id}/strip_{timestamp}.png"
                 
                 if S3_BUCKET:
                     upload_bytes_to_s3(S3_BUCKET, final_key, final_strip_bytes, "image/png")
@@ -208,7 +209,7 @@ async def execute_job(job_id: str, user_id: str, request: DiaryEntryRequest, art
                     await db.commit()
             
             # 7. Done
-            update_job(job_id, JobStatus.DONE, "Ready!", 100, artifactId=diary_id)
+            update_job(job_id, JobStatus.DONE, "Ready!", 100, artifact_id=diary_id)
             print(f"[{job_id}] Execution complete. Artifact: {diary_id}")
 
     except Exception as e:

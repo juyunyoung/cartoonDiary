@@ -37,6 +37,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme), 
+    token_query: Optional[str] = Query(None, alias="token"),
     db: AsyncSession = Depends(get_db)
 ): # db will be injected in route
     

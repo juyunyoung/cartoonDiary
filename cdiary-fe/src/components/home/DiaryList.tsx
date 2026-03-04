@@ -23,6 +23,7 @@ export const DiaryList: React.FC<DiaryListProps> = ({ artifacts, onDelete, onJob
     sse.onmessage = (event) => {
       try {
         const jobsData = JSON.parse(event.data) as Record<string, any>;
+        console.log("SSE Received Jobs Data:", jobsData);
         setActiveJobs(jobsData);
 
         const newlyDoneJobs = Object.entries(jobsData).filter(([id, job]) =>
@@ -30,6 +31,7 @@ export const DiaryList: React.FC<DiaryListProps> = ({ artifacts, onDelete, onJob
         );
 
         if (newlyDoneJobs.length > 0) {
+          console.log("Newly Done Jobs detected:", newlyDoneJobs.map(([id]) => id));
           newlyDoneJobs.forEach(([id]) => completedJobIds.current.add(id));
           onJobDone(false);
         }
@@ -43,19 +45,31 @@ export const DiaryList: React.FC<DiaryListProps> = ({ artifacts, onDelete, onJob
 
   return (
     <div className="space-y-4">
-      {artifacts.map((art) => (
-        <DiaryItem
-          key={art.artifactId}
-          art={art}
-          activeJob={Object.values(activeJobs).find(job =>
-            job.artifactId &&
-            art.artifactId &&
-            job.artifactId.toLowerCase() === art.artifactId.toLowerCase()
-          )}
-          onDelete={onDelete}
-          onClick={() => navigate(`/result/${art.artifactId}`)}
-        />
-      ))}
+      {artifacts.map((art) => {
+        const matchingJobs = Object.values(activeJobs).filter(job =>
+          job.artifactId &&
+          art.artifactId &&
+          job.artifactId.toLowerCase() === art.artifactId.toLowerCase()
+        );
+
+        // Prioritize a job that is currently running (not DONE or FAILED)
+        // If multiple, pick the most recent one (assuming object order or just newest)
+        const matchingJob = matchingJobs.find(j => j.status !== "DONE" && j.status !== "FAILED") || matchingJobs[matchingJobs.length - 1];
+
+        if (matchingJob) {
+          console.log(`[Job Match] Artifact ${art.artifactId} matched with Job ${matchingJob.jobId} (Status: ${matchingJob.status})`);
+        }
+
+        return (
+          <DiaryItem
+            key={art.artifactId}
+            art={art}
+            activeJob={matchingJob}
+            onDelete={onDelete}
+            onClick={() => navigate(`/result/${art.artifactId}`)}
+          />
+        );
+      })}
     </div>
   );
 };

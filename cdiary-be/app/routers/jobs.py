@@ -112,6 +112,7 @@ def update_job(job_id: str, status: Optional[JobStatus] = None, step: Optional[s
 def create_job(job_id: str, user_id: Optional[str] = None, artifact_id: Optional[str] = None):
     print(f"Creating new job: {job_id} for user {user_id}", flush=True)
     JOBS[job_id] = {
+        "jobId": job_id,
         "userId": user_id,
         "status": JobStatus.READING_DIARY,
         "step": "Starting...",

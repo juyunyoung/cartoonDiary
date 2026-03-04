@@ -136,8 +136,8 @@ def get_embedding(text: str) -> List[float]:
 
 def generate_storyboard(diary_text: str, style: str = "comic", num_cuts: int = 1) -> List[Dict[str, str]]:
     """
-    Analyzes diary text and generates a 4-panel storyboard.
-    Returns a list of 4 dicts: [{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}]
+    Analyzes diary text and generates a {num_cuts}-panel storyboard.
+    Returns a list of {num_cuts} dicts: [{"panel": 1, "description": "...", "text": "...", "image_prompt": "..."}]
     """
     prompt = prompts.STORYBOARD_PROMPT_TEMPLATE.format(
         diary_text=diary_text,

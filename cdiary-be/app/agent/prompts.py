@@ -20,11 +20,10 @@ Requirements:
 
 CRITICAL: Ensure variety in camera angles. Avoid using the same shot type (like Medium Shot) for all panels. At least one panel should be a "Wide Shot" or "Full Shot" to show the environment.
 
-Output Format: JSON Array of {num_cuts} objects.
-Example:
+Output Format: JSON Array of EXACTLY {num_cuts} objects.
+Example (for {num_cuts} cut):
 [
-    {{"panel": 1, "description": "...", "text": "...", "image_prompt": "...", "camera": "Wide Shot"}},
-    ...
+    {{"panel": 1, "description": "...", "text": "...", "image_prompt": "...", "camera": "Wide Shot"}}
 ]
 
 RETURN ONLY THE JSON ARRAY. NO MARKDOWN.
@@ -79,13 +78,14 @@ Character Profile (STRICTLY FOLLOW THIS):
 Diary:
 \"\"\"{diary}\"\"\"
 
+CRITICAL: You MUST return exactly {num_cuts} objects in the 'cuts' array. DO NOT generate more than {num_cuts} panels.
 CRITICAL: Do not repeat the same camera angle for all cuts. Ensure at least one cut is a 'Wide Shot' or 'Full Shot' to show the character's surroundings clearly.
 Ensure all content in the JSON (summary, scene, etc.) is written in English.
 """
 
 # --- Individual Image Prompt Generation (from graph.py) ---
 BUILD_IMAGE_PROMPT_TEMPLATE = """
-Write an image generation prompt for a webtoon panel.
+Write an image generation prompt for a daily picture panel.
 You must strictly follow the style guide below:
 - {style_guide}
 

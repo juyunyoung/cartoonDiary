@@ -17,7 +17,7 @@ const translations: TranslationDict = {
   "loading": { ko: "불러오는 중...", en: "Loading..." },
 
   // HomeScreen
-  "app_title": { ko: "만화 일기", en: "Cartoon Diary" },
+  "app_title": { ko: "그림 일기", en: "Picture Diary" },
   "search_diaries": { ko: "일기 검색", en: "Search Diaries" },
   "edit_profile": { ko: "프로필 수정", en: "Edit Profile" },
   "new_diary": { ko: "새 일기", en: "New Diary" },
@@ -84,17 +84,17 @@ const translations: TranslationDict = {
   "style_comedy_desc": { ko: "웃기고 과장된", en: "Funny & Exaggerated" },
   "style_drama_desc": { ko: "진지하고 감성적인", en: "Serious & Emotional" },
   "style_simple_desc": { ko: "깔끔하고 명료한", en: "Clean & Simple" },
-  "generate_comic": { ko: "만화 생성하기", en: "Generate Comic" },
+  "generate_comic": { ko: "그림 생성하기", en: "Generate Picture" },
   "gen_start_failed": { ko: "일기 생성 시작에 실패했습니다.", en: "Failed to start generation." },
 
   // ResultScreen
-  "your_comic": { ko: "나의 만화", en: "Your Comic" },
+  "your_comic": { ko: "나의 그림", en: "Your Picture" },
   "today_diary": { ko: "오늘의 일기", en: "Today's Diary" },
   "regenerate": { ko: "재생성", en: "Regenerate" },
   "save_share": { ko: "저장 및 공유", en: "Save & Share" },
   "saved_at": { ko: "저장되었습니다!", en: "Saved!" },
   "regen_start_failed": { ko: "재생성 시작에 실패했습니다.", en: "Failed to start regeneration." },
-  "creating_comic": { ko: "만화를 만드는 중...", en: "Creating your comic..." },
+  "creating_comic": { ko: "그림을 그리는 중...", en: "Drawing your picture..." },
   "please_wait": { ko: "잠시만 기다려 주세요.", en: "Please wait..." },
 
   // Auth
@@ -111,7 +111,7 @@ const translations: TranslationDict = {
   "register_success": { ko: "회원가입이 완료되었습니다! 환영합니다.", en: "Registration successful! Welcome." },
   "registration_failed": { ko: "회원가입에 실패했습니다.", en: "Registration failed." },
   "invalid_auth": { ko: "아이디 또는 비밀번호가 잘못되었습니다.", en: "Invalid username or password." },
-  "login_subtitle": { ko: "당신의 일상을 만화로 그려보세요.", en: "Turn your daily moments into a comic strip." },
+  "login_subtitle": { ko: "당신의 일상을 그림으로 그려보세요.", en: "Turn your daily moments into a picture story." },
   "or_text": { ko: "또는", en: "OR" },
   "google_signin": { ko: "Google로 로그인", en: "Sign in with Google" },
   "terms_privacy_agreement": { ko: "로그인함으로써 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.", en: "By signing in, you agree to our Terms of Service and Privacy Policy." },

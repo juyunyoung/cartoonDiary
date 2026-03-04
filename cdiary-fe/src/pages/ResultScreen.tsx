@@ -112,7 +112,7 @@ export const ResultScreen: React.FC = () => {
           {/* Main Strip Image */}
           <div className="w-full bg-secondary/10 flex items-center justify-center min-h-[200px]">
             {artifact.finalStripUrl ? (
-              <img src={artifact.finalStripUrl} alt="Comic Strip" className="w-full h-auto object-contain animate-in fade-in duration-500" />
+              <img src={artifact.finalStripUrl} alt="Diary Picture" className="w-full h-auto object-contain animate-in fade-in duration-500" />
             ) : (
               <div className="flex flex-col items-center py-10">
                 <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-3" />

@@ -39,6 +39,12 @@ def plan_storyboard(state: OrchestrationState) -> OrchestrationState:
     data = json.loads(json_str)
 
     sb = Storyboard(**data)
+    
+    # Safety: Truncate cuts to the requested num_cuts if LLM returned more
+    if len(sb.cuts) > state.num_cuts:
+        print(f"WARNING: LLM returned {len(sb.cuts)} cuts, truncating to requested {state.num_cuts}")
+        sb.cuts = sb.cuts[:state.num_cuts]
+
     state.storyboard = sb
 
     update_job(state.job_id, storyboard=sb)
