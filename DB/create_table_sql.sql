@@ -68,6 +68,10 @@ CREATE TABLE diary_chunk_embeddings (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT unique_chunk_model UNIQUE (chunk_id, embedding_model, embedding_version)
 );
+
+--추가 컬럼
+ALTER TABLE diary_chunk_embeddings ADD COLUMN embedding_vector JSONB;
+
 --HNSW 인덱스 
 CREATE INDEX idx_embeddings_vector
 ON diary_chunk_embeddings
