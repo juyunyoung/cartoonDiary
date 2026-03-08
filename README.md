@@ -53,7 +53,7 @@ cd cdiary-be
 
 # 2. 가상환경 생성 (최초 1회, 권장)
 python3 -m venv venv
-source venv/bin/activate
+source ../.venv/bin/activate
 
 # 3. 의존성 설치 (최초 1회)
 # (주의: boto3와 aiobotocore 충돌 방지를 위해 requirements.txt 사용 필수)

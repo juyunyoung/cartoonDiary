@@ -17,7 +17,7 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = "px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
     primary: "bg-primary text-white hover:bg-primary/90",
-    secondary: "bg-secondary text-primary hover:bg-secondary/90",
+    secondary: "bg-secondary text-gray-800 hover:bg-secondary/90 shadow-sm",
     ghost: "bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
   };
 
