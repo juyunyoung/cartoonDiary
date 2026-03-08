@@ -32,6 +32,7 @@ CREATE TABLE diaries (
     generation_options JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    content_embedding JSON,
     CONSTRAINT unique_user_date UNIQUE (user_id, diary_date)
 );
 
