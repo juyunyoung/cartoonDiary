@@ -156,74 +156,74 @@ def qa_images(state: OrchestrationState) -> OrchestrationState:
     assert state.storyboard is not None
     _set_progress(state, 85)
 
-    # qa_results: List[QAResult] = []
-    # cut_map: Dict[int, StoryboardCut] = {c.cut_index: c for c in state.storyboard.cuts}
-    # prompt_map: Dict[int, str] = {p.cut_index: p.prompt for p in state.prompts}
+    qa_results: List[QAResult] = []
+    cut_map: Dict[int, StoryboardCut] = {c.cut_index: c for c in state.storyboard.cuts}
+    prompt_map: Dict[int, str] = {p.cut_index: p.prompt for p in state.prompts}
 
-    # for img in state.images:
-    #     # If it's a full 4-panel strip (cut_index=0), skip individual QA for now
-    #     if img.cut_index == 0:
-    #         qa_results.append(QAResult(
-    #             cut_index=0,
-    #             status="PASS",
-    #             reason="Full 4-panel strip generated successfully.",
-    #             fix_hint=None
-    #         ))
-    #         continue
+    for img in state.images:
+        # If it's a full 4-panel strip (cut_index=0), skip individual QA for now
+        if img.cut_index == 0:
+            qa_results.append(QAResult(
+                cut_index=0,
+                status="PASS",
+                reason="Full 4-panel strip generated successfully.",
+                fix_hint=None
+            ))
+            continue
 
-    #     cut = cut_map[img.cut_index]
-    #     ptxt = prompt_map[img.cut_index]
+        cut = cut_map[img.cut_index]
+        ptxt = prompt_map[img.cut_index]
 
-    #     qprompt = f"""
-    #         You are a Comic QA Specialist. Check if the generated image matches the cut's intent.
-    #         Judge as PASS or FAIL. If FAIL, provide a short reason and a fix hint.
+        qprompt = f"""
+            You are a Comic QA Specialist. Check if the generated image matches the cut's intent.
+            Judge as PASS or FAIL. If FAIL, provide a short reason and a fix hint.
             
-    #         Cut Intent:
-    #         - Summary: {cut.summary}
-    #         - Emotion: {cut.emotion}
-    #         - Scene: {cut.scene}
-    #         - Dialogue: {cut.dialogue}
-    #         - Camera: {cut.camera}
+            Cut Intent:
+            - Summary: {cut.summary}
+            - Emotion: {cut.emotion}
+            - Scene: {cut.scene}
+            - Dialogue: {cut.dialogue}
+            - Camera: {cut.camera}
 
-    #         Used Prompt:
-    #         {ptxt}
+            Used Prompt:
+            {ptxt}
             
-    #         Output MUST be in JSON format only.
-    #         Schema:
-    #         {{"status":"PASS"|"FAIL","reason": "...","fix_hint":"..."}}
-    #         """
+            Output MUST be in JSON format only.
+            Schema:
+            {{"status":"PASS"|"FAIL","reason": "...","fix_hint":"..."}}
+            """
         
-    #     # Download image for Visual QA
-    #     img_bytes = None
-    #     s3_key = img.meta.get("s3_key")
-    #     if s3_key:
-    #          s3 = boto3.client("s3")
-    #          try:
-    #             obj = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
-    #             img_bytes = obj["Body"].read()
-    #          except Exception as e:
-    #              print(f"Failed to download image for QA: {e}")
+        # Download image for Visual QA
+        img_bytes = None
+        s3_key = img.meta.get("s3_key")
+        if s3_key:
+             s3 = boto3.client("s3")
+             try:
+                obj = s3.get_object(Bucket=S3_BUCKET, Key=s3_key)
+                img_bytes = obj["Body"].read()
+             except Exception as e:
+                 print(f"Failed to download image for QA: {e}")
         
-    #     if img_bytes:
-    #          raw = invoke_visual_qa(qprompt, img_bytes, temperature=0.1)
-    #     else:
-    #          # Fallback to text-only if image download fails
-    #          print("Falling back to text-only QA due to image download failure")
-    #          raw = invoke_text_model(qprompt, temperature=0.1)
+        if img_bytes:
+             raw = invoke_visual_qa(qprompt, img_bytes, temperature=0.1)
+        else:
+             # Fallback to text-only if image download fails
+             print("Falling back to text-only QA due to image download failure")
+             raw = invoke_text_model(qprompt, temperature=0.1)
 
-    #     data = json.loads(_extract_json(raw))
-    #     status = data.get("status", "FAIL")
-    #     qa_results.append(QAResult(
-    #         cut_index=img.cut_index,
-    #         status=status,
-    #         reason=data.get("reason"),
-    #         fix_hint=data.get("fix_hint"),
-    #     ))
+        data = json.loads(_extract_json(raw))
+        status = data.get("status", "FAIL")
+        qa_results.append(QAResult(
+            cut_index=img.cut_index,
+            status=status,
+            reason=data.get("reason"),
+            fix_hint=data.get("fix_hint"),
+        ))
 
-    # state.qa_results = qa_results
-    # print(f"QA Results: {qa_results}")
-    # update_job(state.job_id, qa_results=qa_results)
-    update_job(state.job_id, qa_results='done')
+    state.qa_results = qa_results
+    print(f"QA Results: {qa_results}")
+    update_job(state.job_id, qa_results=qa_results)
+    #update_job(state.job_id, qa_results='done')
     
     return state
 
