@@ -12,7 +12,7 @@ export const SignInScreen: React.FC = () => {
     password: ''
   });
   const [error, setError] = useState('');
-  const { t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -40,7 +40,27 @@ export const SignInScreen: React.FC = () => {
 
   return (
     <AppShell>
-      <TopBar title={t('sign_in_title')} showBack={true} />
+      <TopBar
+        title={t('app_title')}
+        leftAction={
+          <div className="flex bg-secondary/20 rounded-full p-1">
+            <button
+              onClick={() => setLanguage('ko')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${language === 'ko' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-primary'
+                }`}
+            >
+              KO
+            </button>
+            <button
+              onClick={() => setLanguage('en')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${language === 'en' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-primary'
+                }`}
+            >
+              EN
+            </button>
+          </div>
+        }
+      />
       <div className="p-6 flex flex-col justify-center min-h-[60vh]">
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">{t('welcome_back')}</h2>
 

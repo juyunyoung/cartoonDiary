@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/common/AppShell';
+import { TopBar } from '../components/common/TopBar';
 import { useLanguage } from '../context/LanguageContext';
 
 export const LoginScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const handleLogin = () => {
     // Mock login logic
@@ -16,6 +17,27 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <AppShell>
+      <TopBar
+        title={t('app_title')}
+        leftAction={
+          <div className="flex bg-secondary/20 rounded-full p-1">
+            <button
+              onClick={() => setLanguage('ko')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${language === 'ko' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-primary'
+                }`}
+            >
+              KO
+            </button>
+            <button
+              onClick={() => setLanguage('en')}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${language === 'en' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-primary'
+                }`}
+            >
+              EN
+            </button>
+          </div>
+        }
+      />
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center">
         {/* Logo or Iconic Image */}
         <div className="w-32 h-32 bg-primary/20 rounded-full flex items-center justify-center mb-8">
