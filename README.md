@@ -89,4 +89,3 @@ Vite와 React 기반의 반응성이 뛰어나고 시각적으로 아름다운 U
 - **백엔드**: AWS App Runner(컨테이너화된 Python 서버)
 - **저장소**: Amazon S3(생성된 이미지 제공)
 - **AI**: AWS Bedrock(Nova 모델 제품군에 대한 액세스 필요)
-- 
