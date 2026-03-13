@@ -41,6 +41,7 @@ export const WriteDiaryScreen: React.FC = () => {
   ];
 
   const [mood, setMood] = useState(moods[2].id); // Default to Soft Smile
+  const [diaryDate, setDiaryDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
 
   const handleGenerate = async () => {
     if (text.trim().length < 5) return;
@@ -51,6 +52,7 @@ export const WriteDiaryScreen: React.FC = () => {
         diaryText: text,
         mood,
         stylePreset: style,
+        diaryDate,
         options: { moreFunny: false, focusEmotion: false, lessText: false }
       });
       navigate(`/result/${artifactId}`);
@@ -67,6 +69,14 @@ export const WriteDiaryScreen: React.FC = () => {
       <TopBar title={t('new_diary')} showBack />
 
       <main className="flex-1 p-4 flex flex-col">
+        <label className="block text-sm font-medium mb-2">{t('diary_date')}</label>
+        <input 
+          type="date"
+          value={diaryDate}
+          onChange={(e) => setDiaryDate(e.target.value)}
+          className="w-full p-3 mb-6 border border-secondary/50 rounded-lg bg-secondary/10 focus:ring-2 focus:ring-primary outline-none"
+        />
+
         <label className="block text-sm font-medium mb-2">{t('how_was_day')}</label>
         <div className="flex gap-4 mb-6 overflow-x-auto pb-4 pt-10 px-4">
           {moods.map((m) => (

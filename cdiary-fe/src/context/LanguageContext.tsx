@@ -71,6 +71,7 @@ const translations: TranslationDict = {
   "char_save_failed": { ko: "캐릭터 저장에 실패했습니다. 다시 시도해 주세요.", en: "Failed to save character. Please try again." },
 
   // WriteDiaryScreen
+  "diary_date": { ko: "일기 일자", en: "Diary Date" },
   "how_was_day": { ko: "오늘 하루는 어땠나요?", en: "How was your day?" },
   "write_story": { ko: "오늘의 이야기를 들려주세요", en: "Write your story" },
   "write_placeholder": { ko: "무슨 일이 있었나요?", en: "What happened today?" },
