@@ -17,7 +17,7 @@ An intelligent diary application that transforms your daily reflections into a 4
 ![system_architecture](system_architecture.png)
 
 ### 2. AI Orchestration Flow
-![ai orchestration](ai_archestration.png)
+![ai orchestration](ai_archestration_en.png)
 
 ---
 
