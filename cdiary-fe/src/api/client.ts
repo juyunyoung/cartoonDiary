@@ -127,9 +127,9 @@ export const api = {
     return response.json();
   },
 
-  async regenerate(data: any): Promise<{ jobId: string }> {
+  async regenerate(_data: any): Promise<{ jobId: string }> {
     // Placeholder for regeneration API
-    console.log("Regenerate not implemented in backend fully yet", data);
+
     return { jobId: "mock-job-id" };
   },
 

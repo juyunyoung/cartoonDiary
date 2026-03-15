@@ -70,7 +70,7 @@ export const WriteDiaryScreen: React.FC = () => {
 
       <main className="flex-1 p-4 flex flex-col">
         <label className="block text-sm font-medium mb-2">{t('diary_date')}</label>
-        <input 
+        <input
           type="date"
           value={diaryDate}
           onChange={(e) => setDiaryDate(e.target.value)}

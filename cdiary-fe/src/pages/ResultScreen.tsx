@@ -52,7 +52,7 @@ export const ResultScreen: React.FC = () => {
         if (updatedArt && updatedArt.finalStripUrl) {
           clearInterval(pollInterval);
         }
-      }, 3000);
+      }, 1000);
     };
 
     return () => {
@@ -180,13 +180,6 @@ export const ResultScreen: React.FC = () => {
           disabled={!artifact.finalStripUrl}
         >
           {t('regenerate')}
-        </Button>
-        <Button
-          className="flex-1"
-          onClick={() => showAlert(t('saved_at'))}
-          disabled={!artifact.finalStripUrl}
-        >
-          {t('save_share')}
         </Button>
       </div>
     </AppShell>

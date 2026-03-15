@@ -11,7 +11,7 @@ export const LoginScreen: React.FC = () => {
   const handleLogin = () => {
     // Mock login logic
     // In a real app, this would handle authentication
-    console.log("Logging in...");
+
     navigate('/home');
   };
 

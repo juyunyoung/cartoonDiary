@@ -11,11 +11,6 @@ interface DiaryItemProps {
 }
 
 export const DiaryItem: React.FC<DiaryItemProps> = React.memo(({ art, activeJob, onDelete, onClick }) => {
-  // 디버깅 로그 추가
-  if (activeJob) {
-    console.log(`[Render Item] Artifact: ${art.artifactId}, Status: ${activeJob.status}, Progress: ${activeJob.progress}%`);
-  }
-
   return (
     <Card
       className="flex cursor-pointer border border-gray-100 dark:border-gray-700 h-24"
